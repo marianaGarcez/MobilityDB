@@ -30,7 +30,7 @@
 /**
  * @brief Vessel Count by Area and Time Period
  * This query is a spatiotemporal aggregation. 
- * We count the number of distinct vessels in a specified geographic area and period. 
+ * We count the number of points by vessels in a specified geographic area and period. 
  * We use spatial filtering with bounding box and temporal filtering.
  *
  * The program can be build as follows
@@ -73,6 +73,7 @@ typedef struct
 {
   long int MMSI;   /* Identifier of the trip */
   TSequence *trip; /* Array of latest observations of the trip, by MMSI */
+  int countSTBox;       /* Number of instants in the trip */
 } trip_record;
 
 int
@@ -94,13 +95,21 @@ main(int argc, char **argv)
   /* Exit value initialized to 1 (i.e., error) to quickly exit upon error */
   int exit_value = 1;
 
+  /* Initialize MEOS */
+  meos_initialize(NULL, NULL);
+
+  /***************************************************************************
+   * Section 0: Define the bounding box and time period
+   ***************************************************************************/
+  STBox *box = stbox_in("SRID=4326;STBOX X((3.3615, 53.964367),(16.505853, 59.24544))");
+  GSERIALIZED * box_geo = stbox_to_geo(box);
   /***************************************************************************
    * Section 1: Open the output file
    ***************************************************************************/
 
   /* Open/create the output file */
   /* You may substitute the full file path in the first argument of fopen */
-  FILE *file_out = fopen("../data/ais_instantsOutQuery1.csv", "w+");
+  FILE *file_out = fopen("../data/out/ais_instantsOutQuery2.csv", "w+");
 
   if (! file_out)
   {
@@ -109,11 +118,8 @@ main(int argc, char **argv)
   }
 
   /***************************************************************************
-   * Section 2: Initialize MEOS and open the input AIS file
+   * Section 2: Open the input AIS file
    ***************************************************************************/
-
-  /* Initialize MEOS */
-  meos_initialize(NULL, NULL);
 
   /* You may substitute the full file path in the first argument of fopen */
   FILE *file_in = fopen("../data/ais_instants.csv", "r");
@@ -194,7 +200,7 @@ main(int argc, char **argv)
     if (trips[j].trip && trips[j].trip->count == NO_INSTANTS_BATCH)
     {
       char *temp_out = tsequence_out(trips[j].trip, 15);
-      fprintf(file_out, "%ld, %s, %lf\n",trips[j].MMSI, temp_out, trips[j].Averagespeed/trips[j].trip->count);
+      fprintf(file_out, "%ld, %s, %d\n",trips[j].MMSI, temp_out, trips[j].countSTBox);
       /* Free memory */
       free(temp_out);
       no_writes++;
@@ -202,21 +208,26 @@ main(int argc, char **argv)
       fflush(stdout);
       /* Restart the sequence by only keeping the last instants */
       tsequence_restart(trips[j].trip, NO_INSTANTS_KEEP);
-      trips[j].Averagespeed = 0;
+      trips[j].countSTBox = 0;
     }
   
     /* Append the last observation */
     TInstant *inst = (TInstant *) tgeogpoint_in(point_buffer);
     if (! trips[j].trip){
-      trips[j].trip = tsequence_make_exp((const TInstant **) &inst, 1,
-        NO_INSTANTS_BATCH, true, true, LINEAR, false);
-      trips[j].Averagespeed = rec.SOG;
+      trips[j].trip = tsequence_make_exp((const TInstant **) &inst, 1, NO_INSTANTS_BATCH, true, true, LINEAR, false);
+      trips[j].countSTBox = 0;
     }
     else{
       tsequence_append_tinstant(trips[j].trip, inst, 0.0, NULL, true);
-        trips[j].Averagespeed += rec.SOG;
     }
+    TInstant *inst2 = (TInstant *) tgeompoint_in(point_buffer);
+    /* Check if instant intersect with box */
+    if (eintersects_tpoint_geo( (const Temporal *) inst2, box_geo))
+      trips[j].countSTBox++;
+    
+
     free(inst);
+    free(inst2);
   } while (! feof(file_in));
 
   printf("\n%d records read\n%d incomplete records ignored\n"

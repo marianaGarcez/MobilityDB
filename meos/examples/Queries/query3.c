@@ -28,16 +28,18 @@
  *****************************************************************************/
 
 /**
- * @brief Average Speed by MMSI
- * It is an aggregation query. 
- * Within this query, we calculate the average speed of vessels for each unique MMSI (id), by window.
+ * @brief Port Arrival and Departure Times by MMSI.
+ * This query showcases event detection and Temporal Analysis. 
+ * It detects the times vessels arrive at and depart from specified ports. 
+ * Based on its AIS points and MEOS' atGeom function, it identifies when a vessel 
+ * enters a port area and when it leaves.
  *
  * The program can be build as follows
  * @code
  * linux:
- * gcc -Wall -g -I/usr/local/include -o query1 query1.c -L/usr/local/lib -lmeos
+ * gcc -Wall -g -I/usr/local/include -o query3 query3.c -L/usr/local/lib -lmeos
  * for macOS:
- * clang -std=gnu99 query1.c -I/opt/homebrew/include  -L/opt/homebrew/lib/ -lmeos -o 01
+ * clang -std=gnu99 query3.c -I/opt/homebrew/include  -L/opt/homebrew/lib/ -lmeos -o 03
  * @endcode
  */
 
@@ -72,9 +74,32 @@ typedef struct
 {
   long int MMSI;   /* Identifier of the trip */
   TSequence *trip; /* Array of latest observations of the trip, by MMSI */
-  double Averagespeed;    /* Speed of the trip */
+  bool in_port;    /* True if the ship is in the port */
+  int num;         /* Number of times the ship entered the port */
 } trip_record;
 
+
+int time_in_port(const Temporal * traj, const STBox *port, bool in_port){
+  if (traj == NULL) {
+      printf("traj is NULL\n");
+      return 0;
+  }
+  if (tpoint_at_stbox(traj,port, true)){
+    if (in_port == false){
+      in_port = true;
+      //printf("Ship just entered the port\n");
+      return 1;
+    }
+  }
+  else {
+    if (in_port == true){
+      in_port = false;
+      //printf("Ship just left the port\n");
+      return 0;
+    }
+  }
+  return 0;
+}
 
 int
 main(int argc, char **argv)
@@ -95,13 +120,25 @@ main(int argc, char **argv)
   /* Exit value initialized to 1 (i.e., error) to quickly exit upon error */
   int exit_value = 1;
 
+  /* Initialize MEOS */
+  meos_initialize(NULL, NULL);
+
+  /***************************************************************************
+   * Section 0: Define the bounding box and time period
+   ***************************************************************************/
+  const STBox *bay = stbox_in("SRID=4326;STBOX X((3.3615, 53.964367),(3.505853, 55.24544))");
+  printf("Created port A\n");
+
+  const STBox *airport = stbox_in("SRID=3414;STBOX X((43239.013,31804.933),(43275.64002746976,39423.317))");
+  printf("Created port B\n");
+
   /***************************************************************************
    * Section 1: Open the output file
    ***************************************************************************/
 
   /* Open/create the output file */
   /* You may substitute the full file path in the first argument of fopen */
-  FILE *file_out = fopen("../data/out/ais_instantsOutQuery1.csv", "w+");
+  FILE *file_out = fopen("../data/out/ais_instantsOutQuery3.csv", "w+");
 
   if (! file_out)
   {
@@ -110,11 +147,8 @@ main(int argc, char **argv)
   }
 
   /***************************************************************************
-   * Section 2: Initialize MEOS and open the input AIS file
+   * Section 2: Open the input AIS file
    ***************************************************************************/
-
-  /* Initialize MEOS */
-  meos_initialize(NULL, NULL);
 
   /* You may substitute the full file path in the first argument of fopen */
   FILE *file_in = fopen("../data/ais_instants.csv", "r");
@@ -195,7 +229,7 @@ main(int argc, char **argv)
     if (trips[j].trip && trips[j].trip->count == NO_INSTANTS_BATCH)
     {
       char *temp_out = tsequence_out(trips[j].trip, 15);
-      fprintf(file_out, "%ld, %s, %lf\n",trips[j].MMSI, temp_out, trips[j].Averagespeed/trips[j].trip->count);
+      fprintf(file_out, "%ld, %s, %d\n",trips[j].MMSI, temp_out, trips[j].num);
       /* Free memory */
       free(temp_out);
       no_writes++;
@@ -203,20 +237,23 @@ main(int argc, char **argv)
       fflush(stdout);
       /* Restart the sequence by only keeping the last instants */
       tsequence_restart(trips[j].trip, NO_INSTANTS_KEEP);
-      trips[j].Averagespeed = 0;
+      trips[j].in_port = false;
+      trips[j].num = 0;
     }
   
     /* Append the last observation */
     TInstant *inst = (TInstant *) tgeogpoint_in(point_buffer);
     if (! trips[j].trip){
-      trips[j].trip = tsequence_make_exp((const TInstant **) &inst, 1,
-        NO_INSTANTS_BATCH, true, true, LINEAR, false);
-      trips[j].Averagespeed = rec.SOG;
+      trips[j].trip = tsequence_make_exp((const TInstant **) &inst, 1, NO_INSTANTS_BATCH, true, true, LINEAR, false);
+      trips[j].in_port = false;
+      trips[j].num = 0;
     }
     else{
       tsequence_append_tinstant(trips[j].trip, inst, 0.0, NULL, true);
-        trips[j].Averagespeed += rec.SOG;
     }
+    TInstant *inst2 = (TInstant *) tgeompoint_in(point_buffer);
+    int num = time_in_port((const Temporal *)inst2, bay, trips[j].in_port);
+    trips[j].num += num;
     free(inst);
   } while (! feof(file_in));
 
@@ -231,7 +268,6 @@ main(int argc, char **argv)
   
 /* Clean up */
 cleanup:
-
  /* Free memory */
   for (i = 0; i < no_ships; i++)
     free(trips[i].trip);
