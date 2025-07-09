@@ -22,7 +22,7 @@
  <tr id="projectrow">
   <td id="projectlogo"><img alt="Logo" src="mobilitydb-logo-icon.png"/></td>
   <td id="projectalign">
-   <div id="projectname">MobilityDB<span id="projectnumber">&#160;1.1</span>
+   <div id="projectname">MobilityDB<span id="projectnumber">&#160;1.3</span>
    </div>
   </td>
  </tr>
@@ -92,8 +92,8 @@ $(function() {
           <tr><td class="navtab"><a class="navtab" href="group__meos__setspan__conversion_gaeac216975e34a1c4698958c3f54c15a4.html#gaeac216975e34a1c4698958c3f54c15a4">float_to_span</a></td></tr>
           <tr><td class="navtab"><a class="navtab" href="group__meos__setspan__conversion_ga48d44982f3654c2b64e867e5aced3df7.html#ga48d44982f3654c2b64e867e5aced3df7">float_to_spanset</a></td></tr>
           <tr><td class="navtab"><a class="navtab" href="group__meos__setspan__conversion_ga9e0dfe679793bd76d786033faa62ad35.html#ga9e0dfe679793bd76d786033faa62ad35">floatset_to_intset</a></td></tr>
+          <tr><td class="navtab"><a class="navtab" href="group__meos__setspan__conversion_ga184a9b315ea20c5dc470a8b94e07337c.html#ga184a9b315ea20c5dc470a8b94e07337c">floatspan_to_intspan</a></td></tr>
           <tr><td class="navtab"><a class="navtab" href="group__meos__setspan__conversion_gafca78ff6e1a624ec490d5148abdad777.html#gafca78ff6e1a624ec490d5148abdad777">floatspanset_to_intspanset</a></td></tr>
-          <tr><td class="navtab"><a class="navtab" href="group__meos__setspan__conversion_ga425879e8891bc8ad0295f828ef931f89.html#ga425879e8891bc8ad0295f828ef931f89">geo_to_set</a></td></tr>
           <tr><td class="navtab"><a class="navtab" href="group__meos__setspan__conversion_ga4eb76c0d4b49c8e1b75a61871ce51b1a.html#ga4eb76c0d4b49c8e1b75a61871ce51b1a">int_to_set</a></td></tr>
           <tr><td class="navtab"><a class="navtab" href="group__meos__setspan__conversion_ga05a195458df4e6e4e464152dcc26923f.html#ga05a195458df4e6e4e464152dcc26923f">int_to_span</a></td></tr>
           <tr><td class="navtab"><a class="navtab" href="group__meos__setspan__conversion_ga42dd4f13340f5762a7922c16c10110d0.html#ga42dd4f13340f5762a7922c16c10110d0">int_to_spanset</a></td></tr>
@@ -103,7 +103,7 @@ $(function() {
           <tr><td class="navtab"><a class="navtab" href="group__meos__setspan__conversion_ga613d7c2783dd2cb844802510793bfc7b.html#ga613d7c2783dd2cb844802510793bfc7b">set_to_span</a></td></tr>
           <tr><td class="navtab"><a class="navtab" href="group__meos__setspan__conversion_ga7a27e36a6ad2530196e553dd1c3415d3.html#ga7a27e36a6ad2530196e553dd1c3415d3">set_to_spanset</a></td></tr>
           <tr><td class="navtab"><a class="navtab" href="group__meos__setspan__conversion_ga363fe9aeb371e19bd307b377e6665c71.html#ga363fe9aeb371e19bd307b377e6665c71">span_to_spanset</a></td></tr>
-          <tr><td class="navtab"><a class="navtab" href="group__meos__setspan__conversion_ga39f4ead96fb6a256f0bb11e2cc94fd0d.html#ga39f4ead96fb6a256f0bb11e2cc94fd0d">text_to_set</a></td></tr>
+          <tr><td class="navtab"><a class="navtab" href="group__meos__setspan__conversion_ga7020f66fa696d7a7425c4d6b3cbbdb34.html#ga7020f66fa696d7a7425c4d6b3cbbdb34">text_to_set</a></td></tr>
           <tr><td class="navtab"><a class="navtab" href="group__meos__setspan__conversion_gac730a936303d899bd2ff89d022d7ec8f.html#gac730a936303d899bd2ff89d022d7ec8f">timestamptz_to_set</a></td></tr>
           <tr><td class="navtab"><a class="navtab" href="group__meos__setspan__conversion_ga7ff5da7590e01a638b8f3be232d3d8e1.html#ga7ff5da7590e01a638b8f3be232d3d8e1">timestamptz_to_span</a></td></tr>
           <tr><td class="navtab"><a class="navtab" href="group__meos__setspan__conversion_ga1daf21b6226f1fe894b8466160b08ed0.html#ga1daf21b6226f1fe894b8466160b08ed0">timestamptz_to_spanset</a></td></tr>
@@ -130,10 +130,10 @@ $(function() {
       </table>
 </div><div class="memdoc">
 
-<p>Return a date converted to a span. </p>
+<p>Convert a date into a span. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramdir">[in]</td><td class="paramname">d</td><td>Value @csqlfn <a class="el" href="group__mobilitydb__setspan__conversion_gac4eabda8463e347d7378e0ea2e9f03a4.html#gac4eabda8463e347d7378e0ea2e9f03a4" title="Return a value converted to a span @sqlfn span()">Value_to_span()</a> </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">d</td><td>Value @csqlfn <a class="el" href="group__mobilitydb__setspan__conversion_gac4eabda8463e347d7378e0ea2e9f03a4.html#gac4eabda8463e347d7378e0ea2e9f03a4" title="Convert a value into a span @sqlfn span()">Value_to_span()</a> </td></tr>
   </table>
   </dd>
 </dl>

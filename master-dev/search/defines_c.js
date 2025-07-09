@@ -3,7 +3,7 @@ var searchData=
   ['late_0',['LATE',['../datetime_8h_ac2e41de927d6382a0817b8fea0246dff.html#ac2e41de927d6382a0817b8fea0246dff',1,'datetime.h']]],
   ['lengthof_1',['lengthof',['../c_8h_ad53b2827d15d4f100433764eea395a94.html#ad53b2827d15d4f100433764eea395a94',1,'c.h']]],
   ['likely_2',['likely',['../c_8h_a217a0bd562b98ae8c2ffce44935351e1.html#a217a0bd562b98ae8c2ffce44935351e1',1,'c.h']]],
-  ['limit_5fratio_3',['LIMIT_RATIO',['../mobilitydb_2pg__include_2pg__general_2temporal_8h_a447ebdddb8fd2f64a52e7e2fea2ba992.html#a447ebdddb8fd2f64a52e7e2fea2ba992',1,'temporal.h']]],
+  ['limit_5fratio_3',['LIMIT_RATIO',['../mobilitydb_2pg__include_2pg__temporal_2temporal_8h_a447ebdddb8fd2f64a52e7e2fea2ba992.html#a447ebdddb8fd2f64a52e7e2fea2ba992',1,'temporal.h']]],
   ['listen_4',['listen',['../win32__port_8h_ae6e6de5a20bed9fc7078f0e6c9c4aca4.html#ae6e6de5a20bed9fc7078f0e6c9c4aca4',1,'win32_port.h']]],
   ['locale_5ft_5',['locale_t',['../win32__port_8h_a0180c4814a14ad7c042c752d2b6704c9.html#a0180c4814a14ad7c042c752d2b6704c9',1,'win32_port.h']]],
   ['long_5falign_5fmask_6',['LONG_ALIGN_MASK',['../c_8h_a2ad604f9486c42f3b878c45362b55d72.html#a2ad604f9486c42f3b878c45362b55d72',1,'c.h']]],
@@ -15,6 +15,6 @@ var searchData=
   ['lwflag_5fm_12',['LWFLAG_M',['../postgis__ext__defs_8in_8h_a4ab89f16958d130d26aadf3a4de39706.html#a4ab89f16958d130d26aadf3a4de39706',1,'postgis_ext_defs.in.h']]],
   ['lwflag_5freadonly_13',['LWFLAG_READONLY',['../postgis__ext__defs_8in_8h_a90b766f35d3f072c18fbc5fbe92a3292.html#a90b766f35d3f072c18fbc5fbe92a3292',1,'postgis_ext_defs.in.h']]],
   ['lwflag_5fsolid_14',['LWFLAG_SOLID',['../postgis__ext__defs_8in_8h_a5d34b5eef36ad2983f876098466a2e82.html#a5d34b5eef36ad2983f876098466a2e82',1,'postgis_ext_defs.in.h']]],
-  ['lwflag_5fversbit2_15',['LWFLAG_VERSBIT2',['../meos__internal_8h_ae19ecee039e42f3e042bc4667fdaf7d2.html#ae19ecee039e42f3e042bc4667fdaf7d2',1,'meos_internal.h']]],
+  ['lwflag_5fversbit2_15',['LWFLAG_VERSBIT2',['../meos__internal__geo_8h_ae19ecee039e42f3e042bc4667fdaf7d2.html#ae19ecee039e42f3e042bc4667fdaf7d2',1,'meos_internal_geo.h']]],
   ['lwflag_5fz_16',['LWFLAG_Z',['../postgis__ext__defs_8in_8h_a54418b6c4bdbaf46aee355e336d0dd4e.html#a54418b6c4bdbaf46aee355e336d0dd4e',1,'postgis_ext_defs.in.h']]]
 ];

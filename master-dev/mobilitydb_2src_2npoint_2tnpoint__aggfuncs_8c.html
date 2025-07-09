@@ -22,7 +22,7 @@
  <tr id="projectrow">
   <td id="projectlogo"><img alt="Logo" src="mobilitydb-logo-icon.png"/></td>
   <td id="projectalign">
-   <div id="projectname">MobilityDB<span id="projectnumber">&#160;1.1</span>
+   <div id="projectname">MobilityDB<span id="projectnumber">&#160;1.3</span>
    </div>
   </td>
  </tr>
@@ -84,15 +84,16 @@ $(function() {
 <a href="#details">More...</a></p>
 <div class="textblock"><code>#include &lt;<a class="el" href="postgres_8h_source.html">postgres.h</a>&gt;</code><br />
 <code>#include &lt;<a class="el" href="meos_8h_source.html">meos.h</a>&gt;</code><br />
-<code>#include &quot;general/temporal.h&quot;</code><br />
-<code>#include &quot;general/skiplist.h&quot;</code><br />
-<code>#include &quot;<a class="el" href="tnpoint__aggfuncs_8h_source.html">npoint/tnpoint_aggfuncs.h</a>&quot;</code><br />
-<code>#include &quot;<a class="el" href="mobilitydb_2pg__include_2pg__general_2skiplist_8h_source.html">pg_general/skiplist.h</a>&quot;</code><br />
+<code>#include &lt;<a class="el" href="meos__internal_8h_source.html">meos_internal.h</a>&gt;</code><br />
+<code>#include &quot;temporal/temporal.h&quot;</code><br />
+<code>#include &quot;temporal/skiplist.h&quot;</code><br />
+<code>#include &quot;<a class="el" href="tnpoint_8h_source.html">npoint/tnpoint.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="mobilitydb_2pg__include_2pg__temporal_2skiplist_8h_source.html">pg_temporal/skiplist.h</a>&quot;</code><br />
 </div><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
-<tr class="memitem:ga167a1a6344ad008ed9879b941885e006"><td class="memItemLeft" align="right" valign="top"><a class="el" href="postgres__ext__defs_8in_8h_a43879eb52e27b2413d7a05056a173ca6.html#a43879eb52e27b2413d7a05056a173ca6">Datum</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__mobilitydb__temporal__agg_ga167a1a6344ad008ed9879b941885e006.html#ga167a1a6344ad008ed9879b941885e006">Tnpoint_tcentroid_transfn</a> (PG_FUNCTION_ARGS)</td></tr>
-<tr class="memdesc:ga167a1a6344ad008ed9879b941885e006"><td class="mdescLeft">&#160;</td><td class="mdescRight">Transition function for temporal centroid aggregation of temporal network points @sqlfn tCentroid()  <a href="group__mobilitydb__temporal__agg_ga167a1a6344ad008ed9879b941885e006.html#ga167a1a6344ad008ed9879b941885e006">More...</a><br /></td></tr>
+<tr class="memitem:ga167a1a6344ad008ed9879b941885e006"><td class="memItemLeft" align="right" valign="top"><a class="el" href="postgres__ext__defs_8in_8h_a43879eb52e27b2413d7a05056a173ca6.html#a43879eb52e27b2413d7a05056a173ca6">Datum</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__mobilitydb__npoint__agg_ga167a1a6344ad008ed9879b941885e006.html#ga167a1a6344ad008ed9879b941885e006">Tnpoint_tcentroid_transfn</a> (PG_FUNCTION_ARGS)</td></tr>
+<tr class="memdesc:ga167a1a6344ad008ed9879b941885e006"><td class="mdescLeft">&#160;</td><td class="mdescRight">Transition function for temporal centroid aggregation of temporal network points @sqlfn tCentroid()  <a href="group__mobilitydb__npoint__agg_ga167a1a6344ad008ed9879b941885e006.html#ga167a1a6344ad008ed9879b941885e006">More...</a><br /></td></tr>
 <tr class="separator:ga167a1a6344ad008ed9879b941885e006"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>

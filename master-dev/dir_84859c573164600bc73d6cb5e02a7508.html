@@ -22,7 +22,7 @@
  <tr id="projectrow">
   <td id="projectlogo"><img alt="Logo" src="mobilitydb-logo-icon.png"/></td>
   <td id="projectalign">
-   <div id="projectname">MobilityDB<span id="projectnumber">&#160;1.1</span>
+   <div id="projectname">MobilityDB<span id="projectnumber">&#160;1.3</span>
    </div>
   </td>
  </tr>
@@ -80,17 +80,17 @@ $(function() {
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="files" name="files"></a>
 Files</h2></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="mobilitydb_2src_2npoint_2npoint_8c.html">npoint.c</a></td></tr>
+<tr class="memdesc:mobilitydb_2src_2npoint_2npoint_8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Network-based static point and segment types. <br /></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="mobilitydb_2src_2npoint_2tnpoint_8c.html">tnpoint.c</a></td></tr>
 <tr class="memdesc:mobilitydb_2src_2npoint_2tnpoint_8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Basic functions for temporal network points. <br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="mobilitydb_2src_2npoint_2tnpoint__aggfuncs_8c.html">tnpoint_aggfuncs.c</a></td></tr>
 <tr class="memdesc:mobilitydb_2src_2npoint_2tnpoint__aggfuncs_8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Aggregate functions for temporal network points. <br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="tnpoint__analyze_8c.html">tnpoint_analyze.c</a></td></tr>
-<tr class="memdesc:tnpoint__analyze_8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Functions for gathering statistics from temporal network point columns. <br /></td></tr>
-<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="mobilitydb_2src_2npoint_2tnpoint__boxops_8c.html">tnpoint_boxops.c</a></td></tr>
-<tr class="memdesc:mobilitydb_2src_2npoint_2tnpoint__boxops_8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Bounding box operators for temporal network points. <br /></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="mobilitydb_2src_2npoint_2tnpoint__compops_8c.html">tnpoint_compops.c</a></td></tr>
+<tr class="memdesc:mobilitydb_2src_2npoint_2tnpoint__compops_8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Ever/always and temporal comparisons for temporal geos. <br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="mobilitydb_2src_2npoint_2tnpoint__distance_8c.html">tnpoint_distance.c</a></td></tr>
 <tr class="memdesc:mobilitydb_2src_2npoint_2tnpoint__distance_8c"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structTemporal.html" title="Structure to represent the common structure of temporal values of any temporal subtype.">Temporal</a> distance for temporal network points. <br /></td></tr>
@@ -98,23 +98,11 @@ Files</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="tnpoint__gin_8c.html">tnpoint_gin.c</a></td></tr>
 <tr class="memdesc:tnpoint__gin_8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">GIN index for the rid of temporal network points. <br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="tnpoint__posops_8c.html">tnpoint_posops.c</a></td></tr>
-<tr class="memdesc:tnpoint__posops_8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Position operators for temporal network points. <br /></td></tr>
-<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="mobilitydb_2src_2npoint_2tnpoint__routeops_8c.html">tnpoint_routeops.c</a></td></tr>
 <tr class="memdesc:mobilitydb_2src_2npoint_2tnpoint__routeops_8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Route identifier operators for temporal network points. <br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="mobilitydb_2src_2npoint_2tnpoint__spatialfuncs_8c.html">tnpoint_spatialfuncs.c</a></td></tr>
 <tr class="memdesc:mobilitydb_2src_2npoint_2tnpoint__spatialfuncs_8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Spatial functions for temporal network points. <br /></td></tr>
-<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="mobilitydb_2src_2npoint_2tnpoint__spatialrels_8c.html">tnpoint_spatialrels.c</a></td></tr>
-<tr class="memdesc:mobilitydb_2src_2npoint_2tnpoint__spatialrels_8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Ever/always spatial relationships for temporal network points. <br /></td></tr>
-<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="mobilitydb_2src_2npoint_2tnpoint__static_8c.html">tnpoint_static.c</a></td></tr>
-<tr class="memdesc:mobilitydb_2src_2npoint_2tnpoint__static_8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Network-based static point and segment types. <br /></td></tr>
-<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">file &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="mobilitydb_2src_2npoint_2tnpoint__tempspatialrels_8c.html">tnpoint_tempspatialrels.c</a></td></tr>
-<tr class="memdesc:mobilitydb_2src_2npoint_2tnpoint__tempspatialrels_8c"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structTemporal.html" title="Structure to represent the common structure of temporal values of any temporal subtype.">Temporal</a> spatial relationships for temporal network points. <br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 </div><!-- contents -->

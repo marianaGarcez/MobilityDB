@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.5"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>MobilityDB: mobilitydb/src/point/projection_gk.c File Reference</title>
+<title>MobilityDB: mobilitydb/src/geo/projection_gk.c File Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -22,7 +22,7 @@
  <tr id="projectrow">
   <td id="projectlogo"><img alt="Logo" src="mobilitydb-logo-icon.png"/></td>
   <td id="projectalign">
-   <div id="projectname">MobilityDB<span id="projectnumber">&#160;1.1</span>
+   <div id="projectname">MobilityDB<span id="projectnumber">&#160;1.3</span>
    </div>
   </td>
  </tr>
@@ -70,7 +70,7 @@ $(function() {
 
 <div id="nav-path" class="navpath">
   <ul>
-<li class="navelem"><a class="el" href="dir_b060bd5020a833a37671e1e10417da21.html">mobilitydb</a></li><li class="navelem"><a class="el" href="dir_c9f6390d5d8264054b7997353d94a8b4.html">src</a></li><li class="navelem"><a class="el" href="dir_ad9b2517d17bbbcf5c88185889e4982c.html">point</a></li>  </ul>
+<li class="navelem"><a class="el" href="dir_b060bd5020a833a37671e1e10417da21.html">mobilitydb</a></li><li class="navelem"><a class="el" href="dir_c9f6390d5d8264054b7997353d94a8b4.html">src</a></li><li class="navelem"><a class="el" href="dir_3912a365d437badfee2b3caf08ee1a47.html">geo</a></li>  </ul>
 </div>
 </div><!-- top -->
 <div class="header">
@@ -88,9 +88,10 @@ $(function() {
 <code>#include &lt;liblwgeom.h&gt;</code><br />
 <code>#include &lt;<a class="el" href="meos_8h_source.html">meos.h</a>&gt;</code><br />
 <code>#include &lt;<a class="el" href="meos__internal_8h_source.html">meos_internal.h</a>&gt;</code><br />
-<code>#include &quot;<a class="el" href="lifting_8h_source.html">general/lifting.h</a>&quot;</code><br />
-<code>#include &quot;point/tpoint_spatialfuncs.h&quot;</code><br />
-<code>#include &quot;<a class="el" href="postgis_8h_source.html">pg_point/postgis.h</a>&quot;</code><br />
+<code>#include &lt;<a class="el" href="meos__internal__geo_8h_source.html">meos_internal_geo.h</a>&gt;</code><br />
+<code>#include &quot;<a class="el" href="lifting_8h_source.html">temporal/lifting.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="tgeo__spatialfuncs_8h_source.html">geo/tgeo_spatialfuncs.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="postgis_8h_source.html">pg_geo/postgis.h</a>&quot;</code><br />
 </div><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
@@ -99,7 +100,7 @@ Functions</h2></td></tr>
 <tr class="separator:a06e4ae246732321c1afb31d305701fdb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afcee8ed89ae5624fe77149655549fa23"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="structPOINT3D.html">POINT3D</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="projection__gk_8c_afcee8ed89ae5624fe77149655549fa23.html#afcee8ed89ae5624fe77149655549fa23">BLRauenberg</a> (double x, double y, double z)</td></tr>
 <tr class="separator:afcee8ed89ae5624fe77149655549fa23"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2d08b1b2b3dcd45fce4af43fff32acb8"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structGSERIALIZED.html">GSERIALIZED</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="projection__gk_8c_a2d08b1b2b3dcd45fce4af43fff32acb8.html#a2d08b1b2b3dcd45fce4af43fff32acb8">geometry_transform_gk</a> (const <a class="el" href="structGSERIALIZED.html">GSERIALIZED</a> *gs)</td></tr>
+<tr class="memitem:a2d08b1b2b3dcd45fce4af43fff32acb8"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structGSERIALIZED.html">GSERIALIZED</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="projection__gk_8c_a2d08b1b2b3dcd45fce4af43fff32acb8.html#a2d08b1b2b3dcd45fce4af43fff32acb8">geometry_transform_gk</a> (const <a class="el" href="structGSERIALIZED.html">GSERIALIZED</a> *<a class="el" href="trgeo__spatialrels_8h_aafdcedbc127e201251d764047053d12e.html#aafdcedbc127e201251d764047053d12e">gs</a>)</td></tr>
 <tr class="memdesc:a2d08b1b2b3dcd45fce4af43fff32acb8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Transform a geometry into the Gauss-Kruger projection used in Secondo.  <a href="projection__gk_8c_a2d08b1b2b3dcd45fce4af43fff32acb8.html#a2d08b1b2b3dcd45fce4af43fff32acb8">More...</a><br /></td></tr>
 <tr class="separator:a2d08b1b2b3dcd45fce4af43fff32acb8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7bfb6b4f15c652fce40e941283e8e8d7"><td class="memItemLeft" align="right" valign="top"><a class="el" href="postgres__ext__defs_8in_8h_a43879eb52e27b2413d7a05056a173ca6.html#a43879eb52e27b2413d7a05056a173ca6">Datum</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="projection__gk_8c_a7bfb6b4f15c652fce40e941283e8e8d7.html#a7bfb6b4f15c652fce40e941283e8e8d7">Geometry_transform_gk</a> (PG_FUNCTION_ARGS)</td></tr>

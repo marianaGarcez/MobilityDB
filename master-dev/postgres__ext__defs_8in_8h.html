@@ -22,7 +22,7 @@
  <tr id="projectrow">
   <td id="projectlogo"><img alt="Logo" src="mobilitydb-logo-icon.png"/></td>
   <td id="projectalign">
-   <div id="projectname">MobilityDB<span id="projectnumber">&#160;1.1</span>
+   <div id="projectname">MobilityDB<span id="projectnumber">&#160;1.3</span>
    </div>
   </td>
  </tr>
@@ -77,7 +77,8 @@ $(function() {
   <div class="summary">
 <a href="#nested-classes">Data Structures</a> &#124;
 <a href="#define-members">Macros</a> &#124;
-<a href="#typedef-members">Typedefs</a>  </div>
+<a href="#typedef-members">Typedefs</a> &#124;
+<a href="#func-members">Functions</a>  </div>
   <div class="headertitle"><div class="title">postgres_ext_defs.in.h File Reference</div></div>
 </div><!--header-->
 <div class="contents">
@@ -136,6 +137,38 @@ Typedefs</h2></td></tr>
 <tr class="separator:adde6aaee8457bee49c2a92621fe22b79"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a28d0a4fd4128a3d3052e8a19f7742282"><td class="memItemLeft" align="right" valign="top">typedef struct <a class="el" href="structvarlena.html">varlena</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="postgres__ext__defs_8in_8h_a28d0a4fd4128a3d3052e8a19f7742282.html#a28d0a4fd4128a3d3052e8a19f7742282">varlena</a></td></tr>
 <tr class="separator:a28d0a4fd4128a3d3052e8a19f7742282"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
+Functions</h2></td></tr>
+<tr class="memitem:acc3ed312b1a4326135b1b459b35a7ed9"><td class="memItemLeft" align="right" valign="top"><a class="el" href="postgres__ext__defs_8in_8h_a9e35f5569eadd0fc9f0f40bf1e70b584.html#a9e35f5569eadd0fc9f0f40bf1e70b584">DateADT</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="postgres__ext__defs_8in_8h_acc3ed312b1a4326135b1b459b35a7ed9.html#acc3ed312b1a4326135b1b459b35a7ed9">date_in</a> (const char *str)</td></tr>
+<tr class="separator:acc3ed312b1a4326135b1b459b35a7ed9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8ed3430a78087a6c1835e74f79d0246c"><td class="memItemLeft" align="right" valign="top">char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="postgres__ext__defs_8in_8h_a8ed3430a78087a6c1835e74f79d0246c.html#a8ed3430a78087a6c1835e74f79d0246c">date_out</a> (<a class="el" href="postgres__ext__defs_8in_8h_a9e35f5569eadd0fc9f0f40bf1e70b584.html#a9e35f5569eadd0fc9f0f40bf1e70b584">DateADT</a> d)</td></tr>
+<tr class="separator:a8ed3430a78087a6c1835e74f79d0246c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga6c1f703fccc6f136cb7d924400918ee1"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__meos__base__types_ga6c1f703fccc6f136cb7d924400918ee1.html#ga6c1f703fccc6f136cb7d924400918ee1">interval_cmp</a> (const <a class="el" href="structInterval.html">Interval</a> *interv1, const <a class="el" href="structInterval.html">Interval</a> *interv2)</td></tr>
+<tr class="memdesc:ga6c1f703fccc6f136cb7d924400918ee1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the comparison of two intervals.  <a href="group__meos__base__types_ga6c1f703fccc6f136cb7d924400918ee1.html#ga6c1f703fccc6f136cb7d924400918ee1">More...</a><br /></td></tr>
+<tr class="separator:ga6c1f703fccc6f136cb7d924400918ee1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac08a9c92bc26022c7e1b3763c57c63a9"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structInterval.html">Interval</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="postgres__ext__defs_8in_8h_ac08a9c92bc26022c7e1b3763c57c63a9.html#ac08a9c92bc26022c7e1b3763c57c63a9">interval_in</a> (const char *str, <a class="el" href="postgres__ext__defs_8in_8h_a43d43196463bde49cb067f5c20ab8481.html#a43d43196463bde49cb067f5c20ab8481">int32</a> typmod)</td></tr>
+<tr class="separator:ac08a9c92bc26022c7e1b3763c57c63a9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1901c39983ab19f981e6d258c3ac429c"><td class="memItemLeft" align="right" valign="top">char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="postgres__ext__defs_8in_8h_a1901c39983ab19f981e6d258c3ac429c.html#a1901c39983ab19f981e6d258c3ac429c">interval_out</a> (const <a class="el" href="structInterval.html">Interval</a> *interv)</td></tr>
+<tr class="separator:a1901c39983ab19f981e6d258c3ac429c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga1352b149ceb4ab424257c98eec8d76ab"><td class="memItemLeft" align="right" valign="top"><a class="el" href="postgres__ext__defs_8in_8h_ac855d2530925e3123cb4be1a069b8b6a.html#ac855d2530925e3123cb4be1a069b8b6a">TimeADT</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__meos__base__types_ga1352b149ceb4ab424257c98eec8d76ab.html#ga1352b149ceb4ab424257c98eec8d76ab">time_in</a> (const char *str, <a class="el" href="postgres__ext__defs_8in_8h_a43d43196463bde49cb067f5c20ab8481.html#a43d43196463bde49cb067f5c20ab8481">int32</a> typmod)</td></tr>
+<tr class="memdesc:ga1352b149ceb4ab424257c98eec8d76ab"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return a time from its string representation.  <a href="group__meos__base__types_ga1352b149ceb4ab424257c98eec8d76ab.html#ga1352b149ceb4ab424257c98eec8d76ab">More...</a><br /></td></tr>
+<tr class="separator:ga1352b149ceb4ab424257c98eec8d76ab"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gabe47fbc9da2b18222cb9727b1848ffb8"><td class="memItemLeft" align="right" valign="top">char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__meos__base__types_gabe47fbc9da2b18222cb9727b1848ffb8.html#gabe47fbc9da2b18222cb9727b1848ffb8">time_out</a> (<a class="el" href="postgres__ext__defs_8in_8h_ac855d2530925e3123cb4be1a069b8b6a.html#ac855d2530925e3123cb4be1a069b8b6a">TimeADT</a> t)</td></tr>
+<tr class="memdesc:gabe47fbc9da2b18222cb9727b1848ffb8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the string representation of a time.  <a href="group__meos__base__types_gabe47fbc9da2b18222cb9727b1848ffb8.html#gabe47fbc9da2b18222cb9727b1848ffb8">More...</a><br /></td></tr>
+<tr class="separator:gabe47fbc9da2b18222cb9727b1848ffb8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga71f7e104053a4e346700c9c7daaf8778"><td class="memItemLeft" align="right" valign="top"><a class="el" href="postgres__ext__defs_8in_8h_a073f186f9dddbefc6d819f25c6ccaa00.html#a073f186f9dddbefc6d819f25c6ccaa00">Timestamp</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__meos__base__types_ga71f7e104053a4e346700c9c7daaf8778.html#ga71f7e104053a4e346700c9c7daaf8778">timestamp_in</a> (const char *str, <a class="el" href="postgres__ext__defs_8in_8h_a43d43196463bde49cb067f5c20ab8481.html#a43d43196463bde49cb067f5c20ab8481">int32</a> typmod)</td></tr>
+<tr class="memdesc:ga71f7e104053a4e346700c9c7daaf8778"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return a timestamp without time zone from its string representation.  <a href="group__meos__base__types_ga71f7e104053a4e346700c9c7daaf8778.html#ga71f7e104053a4e346700c9c7daaf8778">More...</a><br /></td></tr>
+<tr class="separator:ga71f7e104053a4e346700c9c7daaf8778"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga971f2c2c7a317881f8645c7e7436e8e6"><td class="memItemLeft" align="right" valign="top">char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__meos__base__types_ga971f2c2c7a317881f8645c7e7436e8e6.html#ga971f2c2c7a317881f8645c7e7436e8e6">timestamp_out</a> (<a class="el" href="postgres__ext__defs_8in_8h_a073f186f9dddbefc6d819f25c6ccaa00.html#a073f186f9dddbefc6d819f25c6ccaa00">Timestamp</a> t)</td></tr>
+<tr class="memdesc:ga971f2c2c7a317881f8645c7e7436e8e6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the string representation of a timestamp without timezone.  <a href="group__meos__base__types_ga971f2c2c7a317881f8645c7e7436e8e6.html#ga971f2c2c7a317881f8645c7e7436e8e6">More...</a><br /></td></tr>
+<tr class="separator:ga971f2c2c7a317881f8645c7e7436e8e6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga5bdc86be4196307ab80c941721df1449"><td class="memItemLeft" align="right" valign="top"><a class="el" href="postgres__ext__defs_8in_8h_a0cec666f7ba136f78730d20675c0cffe.html#a0cec666f7ba136f78730d20675c0cffe">TimestampTz</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__meos__base__types_ga5bdc86be4196307ab80c941721df1449.html#ga5bdc86be4196307ab80c941721df1449">timestamptz_in</a> (const char *str, <a class="el" href="postgres__ext__defs_8in_8h_a43d43196463bde49cb067f5c20ab8481.html#a43d43196463bde49cb067f5c20ab8481">int32</a> typmod)</td></tr>
+<tr class="memdesc:ga5bdc86be4196307ab80c941721df1449"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the string representation of a timestamp with time zone.  <a href="group__meos__base__types_ga5bdc86be4196307ab80c941721df1449.html#ga5bdc86be4196307ab80c941721df1449">More...</a><br /></td></tr>
+<tr class="separator:ga5bdc86be4196307ab80c941721df1449"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga2ad5216b980f627b892aced870bc09ff"><td class="memItemLeft" align="right" valign="top">char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__meos__base__types_ga2ad5216b980f627b892aced870bc09ff.html#ga2ad5216b980f627b892aced870bc09ff">timestamptz_out</a> (<a class="el" href="postgres__ext__defs_8in_8h_a0cec666f7ba136f78730d20675c0cffe.html#a0cec666f7ba136f78730d20675c0cffe">TimestampTz</a> t)</td></tr>
+<tr class="memdesc:ga2ad5216b980f627b892aced870bc09ff"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the string representation of a timestamp with timezone.  <a href="group__meos__base__types_ga2ad5216b980f627b892aced870bc09ff.html#ga2ad5216b980f627b892aced870bc09ff">More...</a><br /></td></tr>
+<tr class="separator:ga2ad5216b980f627b892aced870bc09ff"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 </div><!-- contents -->
 <!-- start footer part -->

@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.5"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>MobilityDB: meos/include/general/tbox.h File Reference</title>
+<title>MobilityDB: meos/include/temporal/tbox.h File Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -22,7 +22,7 @@
  <tr id="projectrow">
   <td id="projectlogo"><img alt="Logo" src="mobilitydb-logo-icon.png"/></td>
   <td id="projectalign">
-   <div id="projectname">MobilityDB<span id="projectnumber">&#160;1.1</span>
+   <div id="projectname">MobilityDB<span id="projectnumber">&#160;1.3</span>
    </div>
   </td>
  </tr>
@@ -70,7 +70,7 @@ $(function() {
 
 <div id="nav-path" class="navpath">
   <ul>
-<li class="navelem"><a class="el" href="dir_0fff62ca9c7e6b49d869dbbeba2dc9ed.html">meos</a></li><li class="navelem"><a class="el" href="dir_87ff05107218c94eb54c7d49f556ada2.html">include</a></li><li class="navelem"><a class="el" href="dir_8c13b810ba29739bffadb2426a4b1e5d.html">general</a></li>  </ul>
+<li class="navelem"><a class="el" href="dir_0fff62ca9c7e6b49d869dbbeba2dc9ed.html">meos</a></li><li class="navelem"><a class="el" href="dir_87ff05107218c94eb54c7d49f556ada2.html">include</a></li><li class="navelem"><a class="el" href="dir_aa92cce0f61242abd286802b3a4d1fb4.html">temporal</a></li>  </ul>
 </div>
 </div><!-- top -->
 <div class="header">
@@ -99,18 +99,24 @@ Macros</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
-<tr class="memitem:a8bde9d651e55adbc2c5a536acbebde8c"><td class="memItemLeft" align="right" valign="top"><a class="el" href="c_8h_a97a80ca1602ebf2303258971a2c938e2.html#a97a80ca1602ebf2303258971a2c938e2">bool</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="tbox_8h_a8bde9d651e55adbc2c5a536acbebde8c.html#a8bde9d651e55adbc2c5a536acbebde8c">ensure_has_T_tbox</a> (const <a class="el" href="structTBox.html">TBox</a> *box)</td></tr>
-<tr class="memdesc:a8bde9d651e55adbc2c5a536acbebde8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Ensure that a temporal box has T values.  <a href="tbox_8h_a8bde9d651e55adbc2c5a536acbebde8c.html#a8bde9d651e55adbc2c5a536acbebde8c">More...</a><br /></td></tr>
-<tr class="separator:a8bde9d651e55adbc2c5a536acbebde8c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a06bb50708880e15071d8d99f28f83559"><td class="memItemLeft" align="right" valign="top"><a class="el" href="c_8h_a97a80ca1602ebf2303258971a2c938e2.html#a97a80ca1602ebf2303258971a2c938e2">bool</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="tbox_8h_a06bb50708880e15071d8d99f28f83559.html#a06bb50708880e15071d8d99f28f83559">ensure_has_X_tbox</a> (const <a class="el" href="structTBox.html">TBox</a> *box)</td></tr>
-<tr class="memdesc:a06bb50708880e15071d8d99f28f83559"><td class="mdescLeft">&#160;</td><td class="mdescRight">Ensure that a temporal box has X values.  <a href="tbox_8h_a06bb50708880e15071d8d99f28f83559.html#a06bb50708880e15071d8d99f28f83559">More...</a><br /></td></tr>
-<tr class="separator:a06bb50708880e15071d8d99f28f83559"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3c9e972a7dbdef0ce75ff873c33fa0bb"><td class="memItemLeft" align="right" valign="top"><a class="el" href="c_8h_a97a80ca1602ebf2303258971a2c938e2.html#a97a80ca1602ebf2303258971a2c938e2">bool</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="tbox_8h_a3c9e972a7dbdef0ce75ff873c33fa0bb.html#a3c9e972a7dbdef0ce75ff873c33fa0bb">ensure_same_dimensionality_tbox</a> (const <a class="el" href="structTBox.html">TBox</a> *box1, const <a class="el" href="structTBox.html">TBox</a> *box2)</td></tr>
 <tr class="memdesc:a3c9e972a7dbdef0ce75ff873c33fa0bb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Ensure that a temporal boxes have the same dimensionality.  <a href="tbox_8h_a3c9e972a7dbdef0ce75ff873c33fa0bb.html#a3c9e972a7dbdef0ce75ff873c33fa0bb">More...</a><br /></td></tr>
 <tr class="separator:a3c9e972a7dbdef0ce75ff873c33fa0bb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4e14eb39737331c673a04f5e91b2df4c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="tbox_8h_a4e14eb39737331c673a04f5e91b2df4c.html#a4e14eb39737331c673a04f5e91b2df4c">spanset_tbox_slice</a> (<a class="el" href="postgres__ext__defs_8in_8h_a43879eb52e27b2413d7a05056a173ca6.html#a43879eb52e27b2413d7a05056a173ca6">Datum</a> psdatum, <a class="el" href="structTBox.html">TBox</a> *box)</td></tr>
-<tr class="memdesc:a4e14eb39737331c673a04f5e91b2df4c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Peek into a span set datum to find the bounding box.  <a href="tbox_8h_a4e14eb39737331c673a04f5e91b2df4c.html#a4e14eb39737331c673a04f5e91b2df4c">More...</a><br /></td></tr>
-<tr class="separator:a4e14eb39737331c673a04f5e91b2df4c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gaf4b942cf98a4b7cc512cc8c2e331ea3a"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structTBox.html">TBox</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__meos__internal__box__conversion_gaf4b942cf98a4b7cc512cc8c2e331ea3a.html#gaf4b942cf98a4b7cc512cc8c2e331ea3a">set_tbox</a> (const <a class="el" href="structSet.html">Set</a> *s)</td></tr>
+<tr class="memdesc:gaf4b942cf98a4b7cc512cc8c2e331ea3a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Convert a number or a timestamptz set into a temporal box.  <a href="group__meos__internal__box__conversion_gaf4b942cf98a4b7cc512cc8c2e331ea3a.html#gaf4b942cf98a4b7cc512cc8c2e331ea3a">More...</a><br /></td></tr>
+<tr class="separator:gaf4b942cf98a4b7cc512cc8c2e331ea3a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gaa50b41c2b98eeed400cd3afad60a8ec1"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structTBox.html">TBox</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__meos__internal__box__conversion_gaa50b41c2b98eeed400cd3afad60a8ec1.html#gaa50b41c2b98eeed400cd3afad60a8ec1">span_tbox</a> (const <a class="el" href="structSpan.html">Span</a> *s)</td></tr>
+<tr class="memdesc:gaa50b41c2b98eeed400cd3afad60a8ec1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Convert a number span into a temporal box.  <a href="group__meos__internal__box__conversion_gaa50b41c2b98eeed400cd3afad60a8ec1.html#gaa50b41c2b98eeed400cd3afad60a8ec1">More...</a><br /></td></tr>
+<tr class="separator:gaa50b41c2b98eeed400cd3afad60a8ec1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga0edb9730580d8e546f865f88c49b97d4"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structSpan.html">Span</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__meos__internal__box__conversion_ga0edb9730580d8e546f865f88c49b97d4.html#ga0edb9730580d8e546f865f88c49b97d4">tbox_floatspan</a> (const <a class="el" href="structTBox.html">TBox</a> *box)</td></tr>
+<tr class="memdesc:ga0edb9730580d8e546f865f88c49b97d4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Convert a temporal box into a float span.  <a href="group__meos__internal__box__conversion_ga0edb9730580d8e546f865f88c49b97d4.html#ga0edb9730580d8e546f865f88c49b97d4">More...</a><br /></td></tr>
+<tr class="separator:ga0edb9730580d8e546f865f88c49b97d4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga662ef480bfcd5ae0db14384618218178"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structSpan.html">Span</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__meos__internal__box__conversion_ga662ef480bfcd5ae0db14384618218178.html#ga662ef480bfcd5ae0db14384618218178">tbox_intspan</a> (const <a class="el" href="structTBox.html">TBox</a> *box)</td></tr>
+<tr class="memdesc:ga662ef480bfcd5ae0db14384618218178"><td class="mdescLeft">&#160;</td><td class="mdescRight">Convert a temporal box into an integer span.  <a href="group__meos__internal__box__conversion_ga662ef480bfcd5ae0db14384618218178.html#ga662ef480bfcd5ae0db14384618218178">More...</a><br /></td></tr>
+<tr class="separator:ga662ef480bfcd5ae0db14384618218178"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gabda00c26727735d1e8c409bcbbf61d4c"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structSpan.html">Span</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__meos__internal__box__conversion_gabda00c26727735d1e8c409bcbbf61d4c.html#gabda00c26727735d1e8c409bcbbf61d4c">tbox_tstzspan</a> (const <a class="el" href="structTBox.html">TBox</a> *box)</td></tr>
+<tr class="memdesc:gabda00c26727735d1e8c409bcbbf61d4c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Convert a temporal box into a timestamptz span.  <a href="group__meos__internal__box__conversion_gabda00c26727735d1e8c409bcbbf61d4c.html#gabda00c26727735d1e8c409bcbbf61d4c">More...</a><br /></td></tr>
+<tr class="separator:gabda00c26727735d1e8c409bcbbf61d4c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 </div><!-- contents -->
 <!-- start footer part -->

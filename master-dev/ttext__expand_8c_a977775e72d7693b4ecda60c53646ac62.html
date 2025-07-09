@@ -22,7 +22,7 @@
  <tr id="projectrow">
   <td id="projectlogo"><img alt="Logo" src="mobilitydb-logo-icon.png"/></td>
   <td id="projectalign">
-   <div id="projectname">MobilityDB<span id="projectnumber">&#160;1.1</span>
+   <div id="projectname">MobilityDB<span id="projectnumber">&#160;1.3</span>
    </div>
   </td>
  </tr>
@@ -80,6 +80,7 @@ $(function() {
       <div class="navtab">
         <table>
           <tr><td class="navtab"><a class="navtab" href="ttext__expand_8c_a01fa66b89ffeecb1c172bc490622d411.html#a01fa66b89ffeecb1c172bc490622d411">COMPACT_COMP_SEQS</a></td></tr>
+          <tr><td class="navtab"><a class="navtab" href="ttext__expand_8c_ad72dbcf6d0153db1b8d8a58001feed83.html#ad72dbcf6d0153db1b8d8a58001feed83">DEBUG</a></td></tr>
           <tr><td class="navtab"><a class="navtab" href="ttext__expand_8c_accc65d8dc3b6c9d7b9dd81f43f2538bb.html#accc65d8dc3b6c9d7b9dd81f43f2538bb">EXPAND_SEQ</a></td></tr>
           <tr><td class="navtab"><a class="navtab" href="ttext__expand_8c_ac720a5a4e6c88dfd610589432ff18cf6.html#ac720a5a4e6c88dfd610589432ff18cf6">INITIAL_INSTANTS_SEQ</a></td></tr>
           <tr><td class="navtab"><a class="navtab" href="ttext__expand_8c_a2f477c84962a50fe1d8ed029757a79eb.html#a2f477c84962a50fe1d8ed029757a79eb">INITIAL_SEQUENCES_SEQSET</a></td></tr>
@@ -104,21 +105,6 @@ $(function() {
       </table>
 </div><div class="memdoc">
 
-<p>A simple program that generates a given number of ttext instants, appends the instant into a sequence set where each sequence of the sequence set has a fixed number of instants defined by a compiler constant. </p>
-<p >The program outputs the number of sequences and, for the last sequence, the number of instants and the last value.</p>
-<p >The instants are generated so they are not redundant, that is, all input instants will appear in the final sequence.</p>
-<p >The program can be build as follows </p><div class="fragment"><div class="line">gcc -Wall -g -I/usr/local/include -o ttext_expand ttext_expand.c -L/usr/local/lib -lmeos</div>
-</div><!-- fragment --><p >The output of the program when MEOS is built with the flag -DDEBUG_EXPAND=1 to show debug messages for the expandable data structures is as follows </p><div class="fragment"><div class="line">Total number of instants generated: 50000</div>
-<div class="line">Maximum number of instants in a sequence: 500</div>
-<div class="line">Generating the instants (one <span class="charliteral">&#39;*&#39;</span> marker every 100 instants)</div>
-<div class="line">* Seq -&gt; 128 * Seq -&gt; 256 * Seq -&gt; 512 *************************************</div>
-<div class="line">* SS -&gt; 128 ****************************************************************</div>
-<div class="line">Number of instants in the sequence <a class="code hl_function" href="mobilitydb_2sql_2CMakeLists_8txt_aa0f4436142f217bcc4f5890412c81227.html#aa0f4436142f217bcc4f5890412c81227">set</a>: 50000</div>
-<div class="line">Number of sequences: 100, Maximum number of sequences : 128</div>
-<div class="line">Number of instants in the last sequence: 500, Last value : BBBBBBBBB</div>
-<div class="line">The program took 0.000000 seconds to execute</div>
-<div class="ttc" id="amobilitydb_2sql_2CMakeLists_8txt_aa0f4436142f217bcc4f5890412c81227_html_aa0f4436142f217bcc4f5890412c81227"><div class="ttname"><a href="mobilitydb_2sql_2CMakeLists_8txt_aa0f4436142f217bcc4f5890412c81227.html#aa0f4436142f217bcc4f5890412c81227">set</a></div><div class="ttdeci">set(MOBILITYDB_MODULE_PATHNAME &quot;$libdir/lib${MOBILITYDB_LIB_NAME}&quot;) set(extschema &quot;@extschema@&quot;) configure_file(mobilitydb.control $</div><div class="ttdef"><b>Definition:</b> CMakeLists.txt:1</div></div>
-</div><!-- fragment --> 
 </div>
 </div>
     </td>
