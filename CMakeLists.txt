@@ -347,5 +347,21 @@ add_subdirectory(doc)
 add_subdirectory(doxygen)
 
 #-----------------------------------------------------------------------------
+# Helper target: Generate MEOS API TXT (code→txt)
+#-----------------------------------------------------------------------------
+
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+  add_custom_target(meos_api_txt
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/meos_code_to_txt.py ${CMAKE_SOURCE_DIR}/doc/MEOS_FUNCTIONS_AND_TYPES.txt
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Generating MEOS functions/types TXT from headers"
+    VERBATIM
+  )
+else()
+  message(STATUS "Python3 not found: skipping 'meos_api_txt' helper target")
+endif()
+
+#-----------------------------------------------------------------------------
 # The End
 #-----------------------------------------------------------------------------
