@@ -53,6 +53,7 @@
 /* GSL */
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_linalg.h>
+#include <gsl/gsl_errno.h>
 
 /*****************************************************************************
  * Small helpers (angles, LA, timeline)
@@ -236,6 +237,7 @@ ekf_update_xy(double mu[3], double P[9], double zx, double zy,
   gsl_matrix_view S_inv = gsl_matrix_view_array(Sinvarr, 2, 2);
   gsl_matrix *tmp = gsl_matrix_alloc(2,2);
   gsl_matrix_memcpy(tmp, &Sm.matrix);
+  gsl_error_handler_t *old_handler = gsl_set_error_handler_off();
   int chol_status = gsl_linalg_cholesky_decomp(tmp);
   if (chol_status == 0) {
     gsl_linalg_cholesky_invert(tmp);
@@ -248,6 +250,7 @@ ekf_update_xy(double mu[3], double P[9], double zx, double zy,
     gsl_linalg_LU_invert(tmp, perm, &S_inv.matrix);
     gsl_permutation_free(perm);
   }
+  gsl_set_error_handler(old_handler);
   gsl_matrix_free(tmp);
   double i00 = Sinvarr[0], i01 = Sinvarr[1], i10 = Sinvarr[2], i11 = Sinvarr[3];
 
