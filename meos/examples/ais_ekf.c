@@ -133,6 +133,16 @@ static int parse_ts_any(TimestampTz *out, const char *src)
   }
 }
 
+/* Compare AisRow by timestamp */
+static int cmp_rows(const void *a, const void *b)
+{
+  const AisRow *ra = (const AisRow *)a;
+  const AisRow *rb = (const AisRow *)b;
+  if (ra->t < rb->t) return -1;
+  if (ra->t > rb->t) return 1;
+  return 0;
+}
+
 /* Compare by MMSI then timestamp */
 static int cmp_mmsi_t(const void *a, const void *b)
 {
@@ -285,8 +295,7 @@ int main(int argc, char **argv)
     if (strcmp(f[1], "Class A") != 0) continue;
     if (strcmp(f[2], mmsi_filter) != 0) continue;
 
-    char iso[64]; if (!parse_ddmmyyyy(iso, sizeof(iso), f[0])) continue;
-    TimestampTz t = timestamp_in(iso, -1);
+    TimestampTz t; if (!parse_ts_any(&t, f[0])) continue;
     if (!*f[3] || !*f[4]) continue;
     double lat = atof(f[3]);
     double lon = atof(f[4]);
@@ -300,6 +309,16 @@ int main(int argc, char **argv)
   }
   if (fin != stdin) fclose(fin);
   if (nrows < 2) { fprintf(stderr, "Not enough rows for MMSI %s\n", mmsi_filter); return EXIT_FAILURE; }
+
+  /* Sort by time and enforce strictly increasing timestamps */
+  qsort(rows, nrows, sizeof(AisRow), cmp_rows);
+  size_t u = 0;
+  for (size_t i = 0; i < nrows; i++) {
+    if (u == 0 || rows[i].t > rows[u-1].t) rows[u++] = rows[i];
+    /* else skip duplicates/non-increasing */
+  }
+  nrows = u;
+  if (nrows < 2) { fprintf(stderr, "Not enough distinct timestamps for MMSI %s\n", mmsi_filter); return EXIT_FAILURE; }
 
   /* Build temporals */
   TInstant **speed_inst = malloc(nrows * sizeof(*speed_inst));
@@ -321,41 +340,34 @@ int main(int argc, char **argv)
     .epsS=0.0, .hold_last_controls=true
   };
 
+  TimestampTz prev_t = 0; double prev_cog = 0.0; int first = 1; size_t w = 0;
   for (size_t i=0; i<nrows; i++) {
+    TimestampTz t = rows[i].t;
+    if (!first && t <= prev_t) continue;
     double x, y; ll_to_xy(lat0, lon0, rows[i].lat, rows[i].lon, &x, &y);
     GSERIALIZED *pt = geompoint_make2d(0 /*SRID unknown*/, x, y);
-    gps_inst[i] = tpointinst_make(pt, rows[i].t);
-    pfree(pt);
+    gps_inst[w] = tpointinst_make(pt, t); pfree(pt);
 
     double v_ms = rows[i].sog_kn * KNOTS_TO_MS;
-    speed_inst[i] = tfloatinst_make(v_ms, rows[i].t);
+    speed_inst[w] = tfloatinst_make(v_ms, t);
 
-    /* Derive steering from yaw-rate (ROT if present else diff of COG) */
-    double yaw_rate = 0.0; /* rad/s */
-    if (i > 0) {
-      double dt = (double)(rows[i].t - rows[i-1].t) / 1000000.0;
-      if (dt > 0) {
-        if (rows[i].has_rot) {
-          yaw_rate = rows[i].rot_deg_min * (M_PI/180.0) / 60.0;
-        } else {
-          double cog = rows[i].cog_deg * M_PI/180.0;
-          double cog_prev = rows[i-1].cog_deg * M_PI/180.0;
-          cog = unwrap_angle(cog_prev, cog);
-          yaw_rate = (cog - cog_prev) / dt;
-        }
+    double yaw_rate = 0.0; if (!first) {
+      double dt = (double)(t - prev_t) / 1000000.0; if (dt > 0) {
+        if (rows[i].has_rot) yaw_rate = rows[i].rot_deg_min * (M_PI/180.0) / 60.0;
+        else { double cog = rows[i].cog_deg * M_PI/180.0; cog = unwrap_angle(prev_cog, cog); yaw_rate = (cog - prev_cog) / dt; prev_cog = cog; }
       }
-    }
-    double steer = 0.0;
-    if (v_ms > 0.1) steer = atan2(yaw_rate * p.L, v_ms);
-    steer_inst[i] = tfloatinst_make(steer, rows[i].t);
+    } else { prev_cog = rows[i].cog_deg * M_PI/180.0; }
+    double steer = (v_ms > 0.1) ? atan2(yaw_rate * p.L, v_ms) : 0.0;
+    steer_inst[w] = tfloatinst_make(steer, t);
+    prev_t = t; first = 0; w++;
   }
 
   /* Build sequences (step for controls, linear for GPS) */
-  TSequence *speed = tsequence_make((const TInstant **)speed_inst, (int)nrows, true, true, STEP, true);
-  TSequence *steer = tsequence_make((const TInstant **)steer_inst, (int)nrows, true, true, STEP, true);
-  TSequence *gps   = tsequence_make((const TInstant **)gps_inst,   (int)nrows, true, true, LINEAR, true);
+  TSequence *speed = tsequence_make((const TInstant **)speed_inst, (int)w, true, true, STEP, true);
+  TSequence *steer = tsequence_make((const TInstant **)steer_inst, (int)w, true, true, STEP, true);
+  TSequence *gps   = tsequence_make((const TInstant **)gps_inst,   (int)w, true, true, LINEAR, true);
 
-  for (size_t i=0;i<nrows;i++) { pfree(speed_inst[i]); pfree(steer_inst[i]); pfree(gps_inst[i]); }
+  for (size_t i=0;i<w;i++) { pfree(speed_inst[i]); pfree(steer_inst[i]); pfree(gps_inst[i]); }
   free(speed_inst); free(steer_inst); free(gps_inst);
 
   /* Run EKF */
