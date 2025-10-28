@@ -36,6 +36,7 @@ set(TEMPORAL_SRCS
   type_out.c
   type_parser.c
   type_util.c
+  tekf.c
 )
 
 if(MEOS)

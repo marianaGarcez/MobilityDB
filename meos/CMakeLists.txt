@@ -48,6 +48,15 @@ endif()
 
 include(GNUInstallDirs)
 
+# Experimental analytics (EKF/CV cleaners, internal API)
+option(MEOS_EXPERIMENTAL_ANALYTICS
+  "Enable experimental analytics (EKF/CV cleaners)"
+  ON
+)
+if(MEOS_EXPERIMENTAL_ANALYTICS)
+  add_definitions(-DMEOS_EXPERIMENTAL_ANALYTICS=1)
+endif()
+
 #-----------------------------------------
 # Set default PostgreSQL Version for MEOS
 #-----------------------------------------
@@ -292,6 +301,13 @@ configure_file(
 install(
   FILES ${CMAKE_BINARY_DIR}/meos.pc
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+
+# Tests for experimental analytics
+if(MEOS_EXPERIMENTAL_ANALYTICS)
+  if(EXISTS "${CMAKE_SOURCE_DIR}/meos/test/temporal/CMakeLists.txt")
+    add_subdirectory("test/temporal")
+  endif()
+endif()
 
 #-----------------------------------------------------------------------------
 # The End
