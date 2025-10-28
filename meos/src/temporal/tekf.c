@@ -67,6 +67,56 @@ static void build_Q(const TEkfModel *m,const TEkfParams *p,double dt,double *Q,v
 static void build_P0(const TEkfModel *m,const TEkfParams *p,double *P0){int N=m->N; if(p&&p->P0_diag){for(int i=0;i<N;i++) P0[i]=p->P0_diag[i]; return;} for(int i=0;i<N;i++) P0[i]=1.0;}
 static void build_x0(const TEkfModel *m,const TEkfParams *p,const double *z,double *x0){int N=m->N, M=m->M; if(p&&p->x0){memcpy(x0,p->x0,sizeof(double)*(size_t)N); return;} for(int i=0;i<N;i++) x0[i]=0.0; int k=(M<N?M:N); for(int i=0;i<k;i++) x0[i]=z?z[i]:0.0;}
 
+/* Rough trilateration initializer for GPS ranges (least-squares), sets pos and bias */
+static bool gps_init_from_ranges(const TEkfGpsCtx *ctx, const double *z, double *x0)
+{
+  if (!ctx || !z || !x0) return false;
+  const int D = ctx->ndim;
+  const int M = ctx->M;
+  if (M < D + 1) return false; /* need at least D+1 anchors */
+  /* Build linear system A p = b from differences to anchor 0 */
+  const double *a0 = &ctx->anchors[0];
+  double *A = palloc0(sizeof(double) * (size_t)(M-1) * (size_t)D);
+  double *b = palloc0(sizeof(double) * (size_t)(M-1));
+  for (int i = 1; i < M; i++)
+  {
+    const double *ai = &ctx->anchors[i * D];
+    for (int d = 0; d < D; d++)
+      A[(i-1)*D + d] = ai[d] - a0[d];
+    double ai2 = 0.0, a0p = 0.0;
+    for (int d = 0; d < D; d++) { ai2 += ai[d]*ai[d]; a0p += a0[d]*a0[d]; }
+    b[i-1] = 0.5 * ( (z[0]*z[0] - z[i]*z[i]) - (a0p - ai2) );
+  }
+  /* Solve least squares via normal equations: (A^T A) p = A^T b */
+  double *At = palloc(sizeof(double) * (size_t)D * (size_t)(M-1));
+  double *AtA = palloc(sizeof(double) * (size_t)D * (size_t)D);
+  double *Atb = palloc(sizeof(double) * (size_t)D);
+  mat_transpose(A, At, M-1, D);
+  mat_mul(At, A, AtA, D, M-1, D);
+  /* Cholesky solve AtA p = At b */
+  for (int d = 0; d < D; d++)
+  {
+    double sum = 0.0; for (int i = 0; i < M-1; i++) sum += At[d*(M-1) + i] * b[i];
+    Atb[d] = sum;
+  }
+  double *L = palloc(sizeof(double) * (size_t)D * (size_t)D);
+  if (!chol_decompose(AtA, L, D)) { /* regularize */
+    for (int d = 0; d < D; d++) AtA[d*D + d] += 1e-6;
+    if (!chol_decompose(AtA, L, D)) { pfree(A); pfree(b); pfree(At); pfree(AtA); pfree(Atb); pfree(L); return false; }
+  }
+  double *pvec = palloc(sizeof(double) * (size_t)D);
+  chol_solve(L, Atb, pvec, D);
+  for (int d = 0; d < D; d++) x0[2*d] = pvec[d], x0[2*d+1] = 0.0;
+  if (ctx->use_bias)
+  {
+    /* bias ~ z0 - ||p - a0|| */
+    double diff2 = 0.0; for (int d = 0; d < D; d++) { double dd = pvec[d] - a0[d]; diff2 += dd*dd; }
+    x0[2*D] = z[0] - sqrt(diff2);
+  }
+  pfree(A); pfree(b); pfree(At); pfree(AtA); pfree(Atb); pfree(L); pfree(pvec);
+  return true;
+}
+
 typedef struct{int N,M; double *x,*P,*fx,*F,*Q,*FP,*Ft,*hx,*H,*Ht,*y,*HP,*PHt,*S,*L,*K;} TEkfWs;
 static TEkfWs *ws_create(int N,int M){TEkfWs*w=palloc0(sizeof(TEkfWs)); w->N=N;w->M=M; w->x=palloc(sizeof(double)*N); w->P=palloc(sizeof(double)*N*N); w->fx=palloc(sizeof(double)*N); w->F=palloc(sizeof(double)*N*N); w->Q=palloc(sizeof(double)*N*N); w->FP=palloc(sizeof(double)*N*N); w->Ft=palloc(sizeof(double)*N*N); w->hx=palloc(sizeof(double)*M); w->H=palloc(sizeof(double)*M*N); w->Ht=palloc(sizeof(double)*N*M); w->y=palloc(sizeof(double)*M); w->HP=palloc(sizeof(double)*M*N); w->PHt=palloc(sizeof(double)*N*M); w->S=palloc(sizeof(double)*M*M); w->L=palloc(sizeof(double)*M*M); w->K=palloc(sizeof(double)*N*M); return w;}
 static void ws_free(TEkfWs*w){ if(!w) return; pfree(w->x); pfree(w->P); pfree(w->fx); pfree(w->F); pfree(w->Q); pfree(w->FP); pfree(w->Ft); pfree(w->hx); pfree(w->H); pfree(w->Ht); pfree(w->y); pfree(w->HP); pfree(w->PHt); pfree(w->S); pfree(w->L); pfree(w->K); pfree(w);} 
@@ -81,7 +131,11 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
   TInstant **out=palloc(sizeof(TInstant *)*n); int outc=0; bool has=false; TimestampTz prev=0;
   for(int i=0;i<n;i++){
     const TInstant *inst=TSEQUENCE_INST_N(seq,i); Datum val=tinstant_value_p(inst); double *z=palloc(sizeof(double)*M); bool have=false; if(model->z_from_value) have=model->z_from_value(val,inst->temptype,z,ctx); else have=read_z_from_value(val,inst->temptype,M,z);
-    if(!has){ if(!have){ prev=inst->t; pfree(z); continue; } build_x0(model,params,z,w->x); /* emit initial */
+    if(!has){ if(!have){ prev=inst->t; pfree(z); continue; }
+      /* GPS-specific init if applicable */
+      if (model->h == gps_h) { (void) gps_init_from_ranges((const TEkfGpsCtx *) ctx, z, w->x); }
+      else { build_x0(model,params,z,w->x); }
+      /* emit initial */
       if(model->value_from_state){ Datum outv; if(model->value_from_state(w->x,inst->temptype,&outv,ctx)){ out[outc++]=tinstant_make(outv,inst->temptype,inst->t); DATUM_FREE(outv,temptype_basetype(inst->temptype)); } else { Datum outv2=pack_value_from_vec(inst->temptype,z); out[outc++]=tinstant_make(outv2,inst->temptype,inst->t); DATUM_FREE(outv2,temptype_basetype(inst->temptype)); } }
       else { Datum outv=pack_value_from_vec(inst->temptype,z); out[outc++]=tinstant_make(outv,inst->temptype,inst->t); DATUM_FREE(outv,temptype_basetype(inst->temptype)); }
       has=true; prev=inst->t; pfree(z); continue; }
