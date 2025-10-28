@@ -42,6 +42,37 @@ if(DEBUG_EXPAND)
   message(STATUS "Showing debug messages for expandable data structures")
 endif()
 
+# Option to enable sanitizers for development (Address + Undefined)
+option(ENABLE_MEOS_SANITIZERS
+  "Enable Address/Undefined sanitizers for MEOS and tests (default=OFF)"
+  OFF
+)
+
+if(ENABLE_MEOS_SANITIZERS)
+  if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+    message(STATUS "Sanitizers enabled (Address, Undefined)")
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+    # Lower optimizations to improve sanitizer signal
+    if(NOT CMAKE_BUILD_TYPE)
+      set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "" FORCE)
+    endif()
+  else()
+    message(WARNING "Sanitizers requested but not supported by compiler")
+  endif()
+endif()
+
+# Option to enable experimental analytics (e.g., temporal Kalman cleaning)
+option(MEOS_EXPERIMENTAL_ANALYTICS
+  "Enable experimental analytics (default=OFF) such as temporal Kalman cleaning"
+  OFF
+)
+
+if(MEOS_EXPERIMENTAL_ANALYTICS)
+  add_definitions(-DMEOS_EXPERIMENTAL_ANALYTICS=1)
+  message(STATUS "MEOS experimental analytics enabled")
+endif()
+
 #-----------------------------------------------------------------------------
 # Install directories
 #-----------------------------------------------------------------------------
@@ -107,6 +138,16 @@ add_subdirectory("postgres")
 # MEOS
 include_directories("include")
 add_subdirectory("src")
+
+# Optionally include experimental analytics sources if present
+if(MEOS_EXPERIMENTAL_ANALYTICS)
+  if(EXISTS "${CMAKE_SOURCE_DIR}/meos/src/temporal/analytics/CMakeLists.txt")
+    add_subdirectory("src/temporal/analytics")
+  else()
+    message(STATUS
+      "Experimental analytics enabled, but sources not found at 'meos/src/temporal/analytics'; skipping")
+  endif()
+endif()
 
 # Must be after add_library
 if(CMAKE_GENERATOR STREQUAL "Unix Makefiles" OR CMAKE_GENERATOR STREQUAL "Ninja")
@@ -179,6 +220,12 @@ if(RGEO)
   set(PROJECT_OBJECTS ${PROJECT_OBJECTS} "$<TARGET_OBJECTS:rgeo>")
 endif()
 
+# Append experimental analytics object library if available
+if(MEOS_EXPERIMENTAL_ANALYTICS AND TARGET analytics)
+  message(STATUS "Including experimental analytics")
+  set(PROJECT_OBJECTS ${PROJECT_OBJECTS} "$<TARGET_OBJECTS:analytics>")
+endif()
+
 # PostgreSQL
 set(PROJECT_OBJECTS ${PROJECT_OBJECTS} "$<TARGET_OBJECTS:common>")
 set(PROJECT_OBJECTS ${PROJECT_OBJECTS} "$<TARGET_OBJECTS:port>")
@@ -223,6 +270,9 @@ install(
   RENAME "meos_geo.h")
 install(
   FILES "${CMAKE_SOURCE_DIR}/meos/include/meos_internal_geo.h"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+install(
+  FILES "${CMAKE_SOURCE_DIR}/meos/include/temporal/tkalman.h"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 install(
   FILES "${CMAKE_SOURCE_DIR}/meos/src/geo/spatial_ref_sys.csv"
@@ -291,6 +341,18 @@ configure_file(
 install(
   FILES ${CMAKE_BINARY_DIR}/meos.pc
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+
+# Optionally include experimental analytics tests if present
+if(MEOS_EXPERIMENTAL_ANALYTICS)
+  if(EXISTS "${CMAKE_SOURCE_DIR}/meos/tests/experimental/CMakeLists.txt")
+    message(STATUS "Including experimental analytics tests")
+    add_subdirectory("tests/experimental")
+  endif()
+  if(EXISTS "${CMAKE_SOURCE_DIR}/meos/test/temporal/CMakeLists.txt")
+    message(STATUS "Including temporal analytics unit tests")
+    add_subdirectory("test/temporal")
+  endif()
+endif()
 
 #-----------------------------------------------------------------------------
 # The End

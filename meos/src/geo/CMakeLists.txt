@@ -4,7 +4,6 @@ set(GEO_SRCS
   stbox.c
   stbox_index.c
   tgeo.c
-  tgeo_ekf.c
   tgeo_aggfuncs.c
   tgeo_boxops.c
   tgeo_compops.c
@@ -33,4 +32,3 @@ if(MEOS)
 endif()
 
 add_library(geo OBJECT ${GEO_SRCS})
-
