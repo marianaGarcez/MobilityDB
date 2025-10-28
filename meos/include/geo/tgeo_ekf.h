@@ -30,8 +30,8 @@
 /**
  * @file
  * @brief Extended Kalman filter (EKF) for planar tgeompoint trajectories
- * using speed and steering temporal controls and optional GPS tgeompoint
- * measurements. Produces a filtered tgeompoint.
+ * using speed, steering (the turn control that induces curvature, calculated from rate of turn/speed)
+ * and GPS tgeompoint measurements. Produces a filtered tgeompoint.
  */
 
 #ifndef __TGEO_EKF_H__
@@ -45,12 +45,12 @@
  *****************************************************************************/
 
 /**
- * @brief EKF parameters for a bicycle/ACKERMANN-like planar model.
+ * @brief EKF parameters for a ship/train (mobility) model.
  * Units: meters, seconds, radians.
  */
 typedef struct
 {
-  /* Vehicle geometry */
+  /* mobility geometry */
   double L;   /* wheelbase (m) */
   double H;   /* rear overhang (m) */
   double A;   /* CoM offset X (m) */

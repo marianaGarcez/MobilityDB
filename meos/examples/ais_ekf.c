@@ -1,17 +1,17 @@
 /*
- * AIS EKF demo: read AIS CSV, derive speed/steering, run tgeompoint_ekf.
+ * AIS EKF: read AIS CSV, derive speed/steering, run tgeompoint_ekf.
  *
  * CSV columns (minimum used):
  *  0 Timestamp (dd/mm/yyyy HH:MM:SS)
- *  1 Type of mobile (use "Class A")
- *  2 MMSI (filter by argument)
+ *  1 Type of mobile
+ *  2 MMSI (filter by argument or ALL)
  *  3 Latitude
  *  4 Longitude
  *  7 SOG (knots)
  *  8 COG (degrees)
  *  6 ROT (deg/min) [optional]
  *
- * Build (in-tree):
+ * Build:
  *  gcc -O2 -Imeos/include -Lbuild -lmeos meos/examples/ais_ekf.c -o ais_ekf
  */
 
@@ -21,18 +21,8 @@
 #include <math.h>
 #include <gsl/gsl_errno.h>
 #include <time.h>
-
-/* Prefer generated export headers when building in-tree */
-#if __has_include("meos_export.h")
-#  include "meos_export.h"
-#else
-#  include <meos.h>
-#endif
-#if __has_include("meos_geo_export.h")
-#  include "meos_geo_export.h"
-#else
-#  include <meos_geo.h>
-#endif
+#include <meos.h>
+#include <meos_geo.h>
 
 #ifndef pfree
 #define pfree free

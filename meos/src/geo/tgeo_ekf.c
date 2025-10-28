@@ -33,7 +33,6 @@
  * using speed and steering as controls and GPS tgeompoint as measurements.
  */
 
-/* C */
 #include <assert.h>
 #include <math.h>
 #include <string.h>
@@ -47,6 +46,7 @@
 #include "geo/tgeo_spatialfuncs.h"
 #include "geo/tgeo_ekf.h"
 #include "temporal/temporal.h"
+
 /* Utilities (pfree_array) */
 #include "temporal/type_util.h"
 
@@ -56,7 +56,7 @@
 #include <gsl/gsl_errno.h>
 
 /*****************************************************************************
- * Small helpers (angles, LA, timeline)
+ * Helpers (angles, LA, timeline)
  *****************************************************************************/
 
 static inline void
@@ -93,18 +93,21 @@ mat33_copy(double dst[9], const double src[9])
 static inline void
 mat33_mul(const double A[9], const double B[9], double C[9])
 {
+  /*These functions return a matrix view of the array base. The matrix has n1 rows and n2 columns. */
   gsl_matrix_const_view Av = gsl_matrix_const_view_array(A, 3, 3);
   gsl_matrix_const_view Bv = gsl_matrix_const_view_array(B, 3, 3);
   gsl_matrix_view Cv = gsl_matrix_view_array(C, 3, 3);
   gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, &Av.matrix, &Bv.matrix, 0.0, &Cv.matrix);
 }
 
+/* In-place addition of two 3x3 matrices */
 static inline void
 mat33_add_inplace(double A[9], const double B[9])
 {
   for (int i=0;i<9;i++) A[i] += B[i];
 }
 
+/* Ensure symmetry of a 3x3 matrix */
 static inline void
 mat33_symmetrize(double A[9])
 {
@@ -113,6 +116,7 @@ mat33_symmetrize(double A[9])
   A[5] = A[7] = 0.5 * (A[5] + A[7]);
 }
 
+/* Inversion of a 2x2 matrix with numeric stability */
 static inline bool
 mat22_inv_safe(double S00, double S01, double S10, double S11,
                double eps, double *i00, double *i01, double *i10, double *i11)
@@ -149,8 +153,7 @@ cmp_timestamptz(const void *a, const void *b)
  *****************************************************************************/
 
 static void
-ekf_predict(double mu[3], double P[9], double dt, double v_in, double steer,
-            const TGeoEkfParams *p)
+ekf_predict(double mu[3], double P[9], double dt, double v_in, double steer, const TGeoEkfParams *p)
 {
   if (dt <= 0.0)
     return;
@@ -188,6 +191,7 @@ ekf_predict(double mu[3], double P[9], double dt, double v_in, double steer,
   mu[0] = estimatedPoseVector[0];
   mu[1] = estimatedPoseVector[1];
   mu[2] = estimatedPoseVector[2];
+  /* Wrap heading to [0, 2*pi) for Flink parity */
   wrap_mod2pi(&mu[2]);
 
   /* Jacobian (jacobianMatrixGt) */
@@ -198,11 +202,13 @@ ekf_predict(double mu[3], double P[9], double dt, double v_in, double steer,
 
   /* P = G P G^T + Rt, where Rt (movementErrorMatrixRt) is diagonal */
   double GP[9];
+  /* GP = jacobianMatrixGt * P */
   mat33_mul(jacobianMatrixGt, P, GP);
   double GPGt[9];
   double Gt_[9] = { jacobianMatrixGt[0], jacobianMatrixGt[3], jacobianMatrixGt[6],
                     jacobianMatrixGt[1], jacobianMatrixGt[4], jacobianMatrixGt[7],
                     jacobianMatrixGt[2], jacobianMatrixGt[5], jacobianMatrixGt[8] };
+  /* GPGt = GP * G^T */
   mat33_mul(GP, Gt_, GPGt);
 
   /* movementErrorMatrixRt (Rt) */
@@ -210,19 +216,25 @@ ekf_predict(double mu[3], double P[9], double dt, double v_in, double steer,
   movementErrorMatrixRt[0] = p->q_x; movementErrorMatrixRt[4] = p->q_y; movementErrorMatrixRt[8] = p->q_phi;
 
   for (int i=0;i<9;i++) P[i] = GPGt[i] + movementErrorMatrixRt[i];
+  /* Ensure symmetry for Flink parity */
   mat33_symmetrize(P);
 }
 
 static void
-ekf_update_xy(double mu[3], double P[9], double zx, double zy,
-              const TGeoEkfParams *p)
+ekf_update_xy(double mu[3], double P[9], double zx, double zy, const TGeoEkfParams *p)
 {
   /* Flink naming: gpsPosition, observationJacobianMatrix (H), gpsErrorMatrix (R) */
   double gpsPosition[2] = { zx, zy };
   /* observationJacobianMatrix is identity on x,y; implicit in the math below */
-  /* Innovation y = z - H mu (positionPoseMatrix in Flink x/y path) */
   double positionPoseMatrix[2] = { gpsPosition[0] - mu[0], gpsPosition[1] - mu[1] };
 
+  /*
+   * Step 1: Build and invert the innovation covariance (part of Kalman gain)
+   * 1.1: Form S = H P H^T + R (here: the top‑left 2×2 block of P plus R)
+   * 1.2: (Implicit) H P handled by selecting the block; no explicit multiply needed
+   * 1.3: Add observation noise R on the diagonal
+   * 1.4: Invert S (try Cholesky first, fall back to LU if not PD)
+   */
   /* S = H P H^T + R -> top-left 2x2 of P + R (gpsErrorMatrix) */
   double S00 = P[0] + p->r_x;
   double S01 = P[1];
@@ -232,6 +244,7 @@ ekf_update_xy(double mu[3], double P[9], double zx, double zy,
   /* kalmanInverse (S^-1) using GSL; regularize with epsS if provided */
   double Sarr[4] = { S00, 0.5*(S01+S10), 0.5*(S01+S10), S11 };
   if (p->epsS > 0.0) { Sarr[0] += p->epsS; Sarr[3] += p->epsS; }
+  
   double Sinvarr[4];
   gsl_matrix_view Sm = gsl_matrix_view_array(Sarr, 2, 2);
   gsl_matrix_view S_inv = gsl_matrix_view_array(Sinvarr, 2, 2);
@@ -240,6 +253,7 @@ ekf_update_xy(double mu[3], double P[9], double zx, double zy,
   gsl_error_handler_t *old_handler = gsl_set_error_handler_off();
   int chol_status = gsl_linalg_cholesky_decomp(tmp);
   if (chol_status == 0) {
+    /* Cholesky decomposition of the inverse of a matrix */
     gsl_linalg_cholesky_invert(tmp);
     gsl_matrix_memcpy(&S_inv.matrix, tmp);
   } else {
@@ -253,7 +267,11 @@ ekf_update_xy(double mu[3], double P[9], double zx, double zy,
   gsl_set_error_handler(old_handler);
   gsl_matrix_free(tmp);
   double i00 = Sinvarr[0], i01 = Sinvarr[1], i10 = Sinvarr[2], i11 = Sinvarr[3];
-
+  /*
+   * Step 2: Compute the Kalman gain
+   * 2.1: Compute P H^T (here: take columns 0 and 1 of P explicitly)
+   * 2.2: Multiply (P H^T) by S^{-1} to obtain K (3×2)
+   */
   /* K (kalmanGain) = P H^T S^-1 -> columns 0 and 1 of P times S^-1 (3x2) */
   double K00 = P[0]*i00 + P[1]*i10; /* row0 col0 */
   double K01 = P[0]*i01 + P[1]*i11; /* row0 col1 */
@@ -293,13 +311,11 @@ ekf_update_xy(double mu[3], double P[9], double zx, double zy,
 }
 
 /*****************************************************************************
- * Public API
+ * Main Function
  *****************************************************************************/
 
 Temporal *
-tgeompoint_ekf(const Temporal *speed, const Temporal *steer,
-  const Temporal *gps, const GSERIALIZED *origin, double phi0,
-  const TGeoEkfParams *p)
+tgeompoint_ekf(const Temporal *speed, const Temporal *steer, const Temporal *gps, const GSERIALIZED *origin, double phi0,const TGeoEkfParams *p)
 {
   /* Validate arguments */
   VALIDATE_TFLOAT(speed, NULL);
@@ -323,6 +339,7 @@ tgeompoint_ekf(const Temporal *speed, const Temporal *steer,
     memcpy(&pd, p, sizeof(TGeoEkfParams));
   else
   {
+    /* If no parameters are provided, use default values */
     memset(&pd, 0, sizeof(TGeoEkfParams));
     pd.L = 2.83; pd.H = 0.76; pd.A = 3.78; pd.B = 0.5;
     pd.q_x = 0.5; pd.q_y = 0.5; pd.q_phi = 0.5;
@@ -331,7 +348,10 @@ tgeompoint_ekf(const Temporal *speed, const Temporal *steer,
     pd.epsS = 0.0; pd.hold_last_controls = true;
   }
 
-  /* Build merged timestamp array */
+  /*
+   * Predict across control-change boundaries. Update at measurement.
+   * never step backwards or twice at the same time.
+   */
   int nv=0, nd=0, nz=0;
   TimestampTz *tv = temporal_timestamps(speed, &nv);
   TimestampTz *td = temporal_timestamps(steer, &nd);
@@ -349,6 +369,7 @@ tgeompoint_ekf(const Temporal *speed, const Temporal *steer,
   for (int i=0;i<nd;i++) tarr[k++] = td[i];
   if (gps) for (int i=0;i<nz;i++) tarr[k++] = tz[i];
   qsort(tarr, nt, sizeof(TimestampTz), cmp_timestamptz);
+  
   /* Deduplicate */
   int nuniq = 0;
   for (int i=0;i<nt;i++)
@@ -357,7 +378,6 @@ tgeompoint_ekf(const Temporal *speed, const Temporal *steer,
       tarr[nuniq++] = tarr[i];
   }
   /* Shrink logically */
-
   if (tv) pfree(tv); if (td) pfree(td); if (tz) pfree(tz);
 
   /* Initialize state from origin */
@@ -374,6 +394,7 @@ tgeompoint_ekf(const Temporal *speed, const Temporal *steer,
   int ninsts = 0;
 
   TimestampTz tprev = tarr[0];
+  /* Main loop over unique timestamps */
   for (int i=0;i<nuniq;i++)
   {
     TimestampTz t = tarr[i];
@@ -384,7 +405,15 @@ tgeompoint_ekf(const Temporal *speed, const Temporal *steer,
     double dtmp; if (tfloat_value_at_timestamptz(steer, t, false, &dtmp)) { delta_cur = dtmp; d_set = true; }
     if (!pd.hold_last_controls) { if (!v_set) v_cur = 0.0; if (!d_set) delta_cur = 0.0; }
 
-    /* Predict */
+    /* Predict (a priori state)
+     * mu        is the state vector [x, y, phi] (updated in place)
+     * P         is the 3×3 covariance matrix (row‑major, updated in place)
+     * dt        is the elapsed time in seconds since the previous event
+     * v_cur     is the current forward speed control (m/s)
+     * delta_cur is the current steering control (radians)
+     * pd        is the kinematic/noise parameters (L,H,A,B; q_x,q_y,q_phi; etc.)
+     */
+
     if (v_set && d_set)
       ekf_predict(mu, P, dt, v_cur, delta_cur, &pd);
 
@@ -395,6 +424,7 @@ tgeompoint_ekf(const Temporal *speed, const Temporal *steer,
       if (tgeo_value_at_timestamptz(gps, t, false, &gs))
       {
         const POINT2D *gpt = GSERIALIZED_POINT2D_P(gs);
+        /* Update (a posteriori state) */
         ekf_update_xy(mu, P, gpt->x, gpt->y, &pd);
         pfree(gs);
       }
@@ -405,13 +435,11 @@ tgeompoint_ekf(const Temporal *speed, const Temporal *steer,
     TInstant *inst = tpointinst_make(outpt, t);
     instants[ninsts++] = inst;
     pfree(outpt);
-
     tprev = t;
   }
 
   /* Build sequence (linear interpolation, inclusive bounds) */
-  TSequence *seq = tsequence_make((const TInstant **)instants, ninsts,
-                                  true, true, LINEAR, NORMALIZE);
+  TSequence *seq = tsequence_make((const TInstant **)instants, ninsts, true, true, LINEAR, NORMALIZE);
   pfree_array((void **)instants, ninsts);
   pfree(tarr);
   return (Temporal *)seq;
