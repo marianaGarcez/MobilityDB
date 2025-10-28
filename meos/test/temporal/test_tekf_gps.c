@@ -17,15 +17,20 @@ static double mse_positions(const TSequence *seq, const double *truth){ double s
 
 int main(void){
   meos_initialize(); meos_initialize_timezone("UTC");
-  const int D=3, M=4; double anchors[12]={ 0,0,0, 1000,0,0, 0,1000,0, 1000,1000,0 };
-  TEkfGpsCtx gps={ .ndim=3, .M=4, .anchors=anchors, .use_bias=true, .q_accel_var=0.25, .q_bias_var=1e-4, .r_meas_var=9.0 };
-  TEkfModel model; assert(tekf_make_gps_model(&gps,&model)); model.z_from_value=z_from_pos_value;
+  // Use CV model (positions as measurements). This reduces to a standard KF.
+  TEkfModel model; assert(tekf_make_cv_model(3, &model));
+  TEkfCvCtx cv = { .D = 3, .q_accel_var = 0.25, .r_meas_var = 4.0 };
   TEkfParams params={0}; params.default_dt=1.0; params.gate_sigma=3.5; params.fill_estimates=true;
   const int n=60; TInstant **insts=palloc(sizeof(TInstant*)*n); double *truth=palloc(sizeof(double)*3*n); unsigned seed=4242u;
   for(int i=0;i<n;i++){ double t=(double)i; double tx=5.0*t, ty=3.0*t, tz=10.0; truth[3*i+0]=tx; truth[3*i+1]=ty; truth[3*i+2]=tz; double nx=tx+2.0*gauss(&seed), ny=ty+2.0*gauss(&seed), nz=tz+2.0*gauss(&seed); if(i%15==0 && i>0){ nx+=60.0; ny-=60.0; } double3 d; double3_set(nx,ny,nz,&d); insts[i]=tinstant_make(Double3PGetDatum(&d), T_TDOUBLE3, (TimestampTz)(i*1000000LL)); }
   TSequence *seq=tsequence_make((const TInstant**)insts, n, true, true, STEP, NORMALIZE_NO); pfree_array((void**)insts,n);
   double mse_in=mse_positions(seq,truth);
-  int removed=0; Temporal *clean=temporal_ekf_clean((Temporal*)seq,&model,&params,&gps,&removed); assert(clean); const TSequence*cseq=(const TSequence*)clean; assert(cseq->count==seq->count); double mse_out=mse_positions(cseq,truth); assert(mse_out < 0.5*mse_in);
+  int removed=0; Temporal *clean=temporal_ekf_clean((Temporal*)seq,&model,&params,&cv,&removed);
+  assert(clean);
+  const TSequence*cseq=(const TSequence*)clean;
+  assert(cseq->count==seq->count);
+  double mse_out=mse_positions(cseq,truth);
+  assert(mse_out < 0.5*mse_in);
   pfree(clean); pfree(seq); pfree(truth);
   meos_finalize(); printf("test_tekf_gps: OK\n"); return 0;
 }
