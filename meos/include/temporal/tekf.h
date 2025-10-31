@@ -29,7 +29,7 @@
 
 /**
  * @file
- * @brief Extended Kalman Filter (EKF) API for MEOS temporal cleaning (internal)
+ * @brief Extended Kalman Filter (EKF) API for MEOS temporal cleaning
  */
 
 #ifndef __TEKF_H__
@@ -41,30 +41,29 @@
 
 #if defined(MEOS_EXPERIMENTAL_ANALYTICS)
 
+/* EKF model structure */
 typedef struct TEkfModel
 {
   int N;  /* state dim */
   int M;  /* measurement dim */
-
-  bool (*f)(const double *x, const double *u, double dt,
-            double *fx, double *F, void *ctx);
-  bool (*h)(const double *x, double *hx, double *H, void *ctx);
-  bool (*Q)(double dt, double *Q, void *ctx); /* optional */
-  bool (*R)(double *R, void *ctx);            /* optional */
-
-  bool (*z_from_value)(Datum value, meosType temptype, double *z, void *ctx);
-  bool (*value_from_state)(const double *x, meosType temptype, Datum *out_value, void *ctx);
+  bool (*f)(const double *x, const double *u, double dt, double *fx, double *F, void *ctx); /* state transition */
+  bool (*h)(const double *x, double *hx, double *H, void *ctx);         /* measurement function */
+  bool (*Q)(double dt, double *Q, void *ctx); /* optional, process noise covariance */
+  bool (*R)(double *R, void *ctx);            /* optional, measurement noise covariance */
+  bool (*z_from_value)(Datum value, meosType temptype, double *z, void *ctx); /* extract measurement from value */
+  bool (*value_from_state)(const double *x, meosType temptype, Datum *out_value, void *ctx); /* build value from state */
 } TEkfModel;
 
+/* EKF parameters */
 typedef struct TEkfParams
 {
-  double default_dt;
-  double gate_sigma;
-  bool   fill_estimates;
-  const double *P0_diag; /* len N */
-  const double *x0;      /* len N */
-  const double *Q_diag;  /* len N (fallback if model->Q is NULL) */
-  const double *R_diag;  /* len M (fallback if model->R is NULL) */
+  double default_dt; /* used if time difference is zero */
+  double gate_sigma; /* if true, fill in estimates for removed instants */
+  bool   fill_estimates; /* if true, fill in estimates for removed instants */
+  const double *P0_diag; /* len N, initial state covariance */
+  const double *x0;      /* len N, initial state */
+  const double *Q_diag;  /* len N (fallback if model->Q is NULL), initial process noise covariance */
+  const double *R_diag;  /* len M (fallback if model->R is NULL), initial measurement noise covariance */
 } TEkfParams;
 
 /* CV model context and builder */
@@ -88,8 +87,21 @@ typedef struct TEkfGpsCtx
   double r_meas_var;  /* measurement variance */
 } TEkfGpsCtx;
 
-bool tekf_make_gps_model(const TEkfGpsCtx *ctx, TEkfModel *model);
+/* Workspace structure with all matrices sized from the model dims N and M */
+typedef struct{
+  int N,M; 
+  double *x,*P,*fx,*F,*Q,*FP,*Ft,*hx,*H,*Ht,*y,*HP,*PHt,*S,*L,*K;
+} TEkfWs;
 
+/* Constant-Velocity (CV) model */
+typedef struct { 
+  int D; 
+  double q_accel_var; 
+  double r_meas_var; 
+} CV_ModelCtx;
+
+bool tekf_make_gps_model(const TEkfGpsCtx *ctx, TEkfModel *model);
+bool gps_Q(double dt, double *Q, void *v);
 /* Entrypoint */
 Temporal * temporal_ekf_clean(const Temporal *temp, const TEkfModel *model,
                               const TEkfParams *params, void *ctx, int *removed_count);

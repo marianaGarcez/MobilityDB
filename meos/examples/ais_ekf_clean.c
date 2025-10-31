@@ -29,14 +29,14 @@
 
 /**
  * @file
- * @brief Example: read AIS-like CSV, build TSEQUENCE per MMSI, clean with EKF.
+ * @brief Example: read AIS CSV, build TSEQUENCE per MMSI, clean with EKF.
  *
- * Input CSV columns (comma separated), first row is a header:
+ * Input CSV columns, first row is a header:
  * Timestamp,Type of mobile,MMSI,Latitude,Longitude, ... (other columns ignored)
  * Example timestamp format: "01/03/2024 00:00:00" (DD/MM/YYYY HH:MM:SS)
  *
  * For each MMSI we aggregate geographic positions (Longitude, Latitude)
- * into a TSEQUENCE of type T_TDOUBLE2 (values are [lon, lat] in degrees),
+ * into a TSEQUENCE of (values are [lon, lat] in degrees),
  * and apply a Constant-Velocity EKF to clean the trajectory.
  *
  * Build (requires MEOS built with EKF enabled):
@@ -53,9 +53,9 @@
 #include <string.h>
 #include <stdbool.h>
 #include <time.h>
+#include <math.h>
 
 #include <meos.h>
-#include <meos_internal.h>
 /* Bring only the minimal temporal definitions to avoid geo deps */
 #include <temporal/doublen.h>
 #include <temporal/meos_catalog.h>
@@ -66,6 +66,47 @@
 #ifndef Double2PGetDatum
 #define Double2PGetDatum(X)       PointerGetDatum(X)
 #endif
+
+/* Minimal internal forward decls we rely on (avoid meos_internal.h deps) */
+extern TInstant *tinstant_make(Datum value, meosType temptype, TimestampTz t);
+extern Datum tinstant_value_p(const TInstant *inst);
+extern TInstant *temporal_instant_n(const Temporal *temp, int n); /* returns a copy */
+
+/* Simple local ENU (East, North) approximation around an origin in meters */
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+static inline double deg2rad(double d){ return d * (M_PI / 180.0); }
+static inline double rad2deg(double r){ return r * (180.0 / M_PI); }
+
+static void enu_from_lonlat(double lat0_deg, double lon0_deg,
+                            double lat_deg, double lon_deg,
+                            double *E, double *N)
+{
+  const double R = 6378137.0; /* WGS84 equatorial radius (m) */
+  double lat0 = deg2rad(lat0_deg), lon0 = deg2rad(lon0_deg);
+  double lat  = deg2rad(lat_deg),  lon  = deg2rad(lon_deg);
+  double dlat = lat - lat0;
+  double dlon = lon - lon0;
+  double clat = cos(lat0);
+  *E = R * clat * dlon;
+  *N = R * dlat;
+}
+
+static void lonlat_from_enu(double lat0_deg, double lon0_deg,
+                            double E, double N,
+                            double *lat_deg, double *lon_deg)
+{
+  const double R = 6378137.0;
+  double lat0 = deg2rad(lat0_deg), lon0 = deg2rad(lon0_deg);
+  double clat = cos(lat0);
+  double dlat = N / R;
+  double dlon = (clat > 1e-12 ? E / (R * clat) : 0.0);
+  double lat = lat0 + dlat;
+  double lon = lon0 + dlon;
+  *lat_deg = rad2deg(lat);
+  *lon_deg = rad2deg(lon);
+}
 /* no need for internal geo helpers in this example */
 
 
@@ -97,6 +138,37 @@ typedef struct
   int cap_inst;
   TInstant **inst; /* T_TDOUBLE2 instants [lon,lat] */
 } Track;
+
+/* ENU adapters for EKF model */
+typedef struct { int D; double q_accel_var; double r_meas_var; double lat0, lon0; } CvEnuCtx;
+
+static bool enu_z_from_value(Datum v, meosType tt, double *z, void *ctx)
+{
+  CvEnuCtx *c = (CvEnuCtx *) ctx;
+  meosType bt = temptype_basetype(tt);
+  if (bt != T_DOUBLE2) return false;
+  const double2 *d = DatumGetDouble2P(v);
+  double E, N;
+  /* d->a = lon, d->b = lat */
+  enu_from_lonlat(c->lat0, c->lon0, d->b, d->a, &E, &N);
+  z[0] = E; z[1] = N;
+  return true;
+}
+
+static bool enu_value_from_state(const double *x, meosType tt, Datum *out, void *ctx)
+{
+  CvEnuCtx *c = (CvEnuCtx *) ctx;
+  meosType bt = temptype_basetype(tt);
+  if (bt != T_DOUBLE2) return false;
+  /* CV state: [E, vE, N, vN] */
+  double E = x[0], N = x[2];
+  double lat, lon;
+  lonlat_from_enu(c->lat0, c->lon0, E, N, &lat, &lon);
+  double2 *d2p = palloc(sizeof(double2));
+  double2_set(lon, lat, d2p);
+  *out = Double2PGetDatum(d2p);
+  return true;
+}
 
 static bool parse_timestamp_eu(const char *s, TimestampTz *out)
 {
@@ -255,6 +327,32 @@ int main(int argc, char **argv)
 
   /* Open output CSV */
   const char *outpath = (argc >= 3 ? argv[2] : "ais_ekf_clean_out.csv");
+  /* Optional third/extra args:
+     - 'fill' (default) or 'drop'
+     - numeric gate_sigma
+     - q=... (process accel var)
+     - r=... (measurement var)
+     - 'enu' (filter in meters, default) or 'deg' (filter in degrees)
+  */
+  bool cli_drop = false;
+  double cli_gate_sigma = -1.0;
+  double cli_q = -1.0;      /* q_accel_var in deg^2/s^4 */
+  double cli_r = -1.0;      /* r_meas_var in deg^2 */
+  bool use_enu = true;
+  for (int ai = 3; ai < argc; ai++)
+  {
+    if (strcmp(argv[ai], "drop") == 0) cli_drop = true;
+    else if (strcmp(argv[ai], "fill") == 0) cli_drop = false;
+    else if (strncmp(argv[ai], "q=", 2) == 0) { cli_q = strtod(argv[ai]+2, NULL); }
+    else if (strncmp(argv[ai], "r=", 2) == 0) { cli_r = strtod(argv[ai]+2, NULL); }
+    else if (strcmp(argv[ai], "enu") == 0) { use_enu = true; }
+    else if (strcmp(argv[ai], "deg") == 0) { use_enu = false; }
+    else
+    {
+      char *endp = NULL; double v = strtod(argv[ai], &endp);
+      if (endp && endp != argv[ai]) cli_gate_sigma = v;
+    }
+  }
   FILE *fout = fopen(outpath, "w");
   if (!fout)
   {
@@ -272,9 +370,10 @@ int main(int argc, char **argv)
     if (tracks[i].n_inst == 0)
       continue;
 
+    /* Build raw sequence without normalization to preserve all instants */
     TSequence *seq = tsequence_make((const TInstant **) tracks[i].inst,
                                     tracks[i].n_inst,
-                                    true, true, LINEAR, true);
+                                    true, true, LINEAR, false);
 
 #ifdef HAVE_TEKF
     TEkfModel model;
@@ -284,42 +383,99 @@ int main(int argc, char **argv)
       free(seq);
       continue;
     }
+    /* Option A (default): use input lon/lat directly.
+       Option B (use_enu): run the EKF in ENU meters via model adapters.
+       We keep the sequence as-is and adapt measurements/state. */
+    double lat0 = 0.0, lon0 = 0.0;
+    if (use_enu)
+    {
+      TInstant *i0 = temporal_instant_n((const Temporal *) seq, 1); /* 1-based */
+      const double2 *v0 = DatumGetDouble2P(tinstant_value_p(i0));
+      lon0 = v0->a; lat0 = v0->b;
+      pfree(i0);
+    }
     /* CV context and parameters */
-    TEkfCvCtx cvctx = { .D = 2, .q_accel_var = 1e-8, .r_meas_var = 1e-6 };
+    /* Defaults: if ENU (meters): q in m^2/s^4, r in m^2; if degrees: as before */
+    double def_q = use_enu ? 0.04 /* (0.2 m/s^2)^2 */ : 5e-10;
+    double def_r = use_enu ? 400.0 /* (20 m)^2 */ : 4e-6;
+    CvEnuCtx cvctx = { .D = 2,
+                       .q_accel_var = (cli_q > 0 ? cli_q : def_q),
+                       .r_meas_var  = (cli_r > 0 ? cli_r : def_r),
+                       .lat0 = lat0, .lon0 = lon0 };
     double P0_diag[4] = { 1e-4, 1e-2, 1e-4, 1e-2 }; /* pos/vel per axis */
     TEkfParams params = {
       .default_dt = 1.0,
-      .gate_sigma = 3.5,
-      .fill_estimates = true,
+      .gate_sigma = (cli_gate_sigma > 0 ? cli_gate_sigma : 8.0),
+      .fill_estimates = !cli_drop,
       .P0_diag = P0_diag,
       .x0 = NULL,
       .Q_diag = NULL,
       .R_diag = NULL
     };
     int removed = 0;
-    Temporal *clean = temporal_ekf_clean((Temporal *) seq, &model, &params, &cvctx, &removed);
+    /* When using ENU, adapt model to convert measurements/state */
+    bool use_adapt = use_enu;
+    if (use_adapt)
+    {
+      /* Measurement: z = [E,N] from [lon,lat] */
+      model.z_from_value = enu_z_from_value;
+      /* State -> output value: [E,N] -> [lon,lat] */
+      model.value_from_state = enu_value_from_state;
+    }
+    Temporal *clean = temporal_ekf_clean((Temporal *) seq, &model, &params,
+                                         (void*)&cvctx,
+                                         &removed);
 
     /* Dump CSV rows for this track */
     const TSequence *cseq = (const TSequence *) clean;
     int nraw = seq->count;
     int ncln = cseq ? cseq->count : 0;
-    int nmin = (cseq ? (nraw < ncln ? nraw : ncln) : nraw);
-    for (int k = 0; k < nmin; k++)
+    if (cseq && !params.fill_estimates)
     {
-      const TInstant *ir = TSEQUENCE_INST_N(seq, k);
-      const TInstant *ic = cseq ? TSEQUENCE_INST_N(cseq, k) : NULL;
-      char *ts = pg_timestamptz_out(ir->t);
-      const double2 *vr = DatumGetDouble2P(tinstant_value_p(ir));
-      double lon_r = vr->a, lat_r = vr->b;
-      double lon_c = lon_r, lat_c = lat_r;
-      if (ic)
+      /* Two-pointer join on timestamps: cleaned times are subset of raw */
+      int iraw = 0, icln = 0;
+      while (iraw < nraw && icln < ncln)
       {
-        const double2 *vc = DatumGetDouble2P(tinstant_value_p(ic));
-        lon_c = vc->a; lat_c = vc->b;
+        TInstant *ir = temporal_instant_n((const Temporal *) seq, iraw + 1);
+        TInstant *ic = temporal_instant_n((const Temporal *) cseq, icln + 1);
+        if (ir->t == ic->t)
+        {
+          char *ts = pg_timestamptz_out(ir->t);
+          const double2 *vr = DatumGetDouble2P(tinstant_value_p(ir));
+          double lon_r = vr->a, lat_r = vr->b;
+          const double2 *vc = DatumGetDouble2P(tinstant_value_p(ic));
+          double lon_c = vc->a, lat_c = vc->b;
+          if (fout)
+            fprintf(fout, "%s,%lld,%.10f,%.10f,%.10f,%.10f\n", ts, tracks[i].mmsi,
+                    lon_r, lat_r, lon_c, lat_c);
+          pfree(ts);
+          pfree(ir); pfree(ic);
+          iraw++; icln++;
+        }
+        else if (ir->t < ic->t)
+        { pfree(ic); pfree(ir); iraw++; }
+        else
+        { pfree(ic); pfree(ir); icln++; }
       }
-      if (fout)
-        fprintf(fout, "%s,%lld,%.10f,%.10f,%.10f,%.10f\n", ts, tracks[i].mmsi, lon_r, lat_r, lon_c, lat_c);
-      pfree(ts);
+    }
+    else
+    {
+      int nmin = (cseq ? (nraw < ncln ? nraw : ncln) : nraw);
+      for (int k = 0; k < nmin; k++)
+      {
+        TInstant *ir = temporal_instant_n((const Temporal *) seq, k + 1);
+        TInstant *ic = cseq ? temporal_instant_n((const Temporal *) cseq, k + 1) : NULL;
+        char *ts = pg_timestamptz_out(ir->t);
+        const double2 *vr = DatumGetDouble2P(tinstant_value_p(ir));
+        double lon_r = vr->a, lat_r = vr->b;
+        double lon_c = lon_r, lat_c = lat_r;
+        if (ic) { const double2 *vc = DatumGetDouble2P(tinstant_value_p(ic)); lon_c = vc->a; lat_c = vc->b; }
+        if (fout)
+          fprintf(fout, "%s,%lld,%.10f,%.10f,%.10f,%.10f\n", ts, tracks[i].mmsi, lon_r, lat_r, lon_c, lat_c);
+        pfree(ts);
+        if (ic) pfree(ic);
+        pfree(ir);
+      }
     }
 
     /* Optional: also print a brief summary to stdout */
