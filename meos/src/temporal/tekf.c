@@ -290,7 +290,6 @@ static bool gps_value_from_state(const double *x, meosType tt, Datum *out, void*
     } 
     default: return false;
   }
-  
 }
 
 /* Builder for GPS-like model */
@@ -438,7 +437,7 @@ static bool gps_init_from_ranges(const TEkfGpsCtx *ctx, const double *z, double 
     }
     b[i-1] = 0.5 * ( (z[0]*z[0] - z[i]*z[i]) - (a0p - ai2) );
   }
-  /* Solve least squares via normal equations: (A^T A) p = A^T b */
+  /* Solve least squares via: (A^T A) p = A^T b */
   double *At = palloc(sizeof(double) * (size_t)D * (size_t)(M-1));
   double *AtA = palloc(sizeof(double) * (size_t)D * (size_t)D);
   double *Atb = palloc(sizeof(double) * (size_t)D);
@@ -660,21 +659,26 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
       } prev=inst->t; pfree(z); 
       continue; 
     }
+    /* Compute innovation y = z - h(x) and its covariance S = H*P*H^T + R */
     build_R(model,params,w->S,ctx); 
+    /* h(x) */
     model->h(w->x,w->hx,w->H,ctx); 
     for(int ii=0;ii<M;ii++) 
       w->y[ii]=z[ii]-w->hx[ii]; 
 
+    /* S = H*P*H^T */
     mat_mul(w->H,w->P,w->HP,M,N,N); 
     mat_transpose(w->H,w->Ht,M,N); 
     mat_mul(w->HP,w->Ht,w->S,M,N,M); 
 
     double *Rt=palloc(sizeof(double)*M*M); 
     build_R(model,params,Rt,ctx); 
+    /* S = S + R */
     mat_add(w->S,w->S,Rt,M,M); 
 
     /* gating and outlier rejection */
     if(!chol_decompose(w->S,w->L,M)){ 
+      /* regularize and try again */
       for(int ii=0;ii<M;ii++) 
         w->S[ii*M+ii]+=1e-9; 
       if(!chol_decompose(w->S,w->L,M)){ 
@@ -688,7 +692,8 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
           out[outc++]=tinstant_make(outv,inst->temptype,inst->t); 
           DATUM_FREE(outv,temptype_basetype(inst->temptype)); 
         } 
-        else if(removed) (*removed)++; 
+        else if(removed) 
+          (*removed)++; 
         prev=inst->t; 
         pfree(Rt); 
         pfree(z); 
@@ -701,12 +706,17 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
       for(int ii=0;ii<M;ii++) 
         d2+=w->y[ii]*tmpy[ii]; 
       pfree(tmpy); 
+      /* Compute gating criterion */
       bool reject=(params->gate_sigma>0.0)&&(d2>params->gate_sigma*params->gate_sigma); 
+      /* If rejected, either emit estimate or skip */
       if(reject){ 
+        /* If filling estimates, emit the current state */
         if(params->fill_estimates){ 
           Datum outv; 
           bool ok=false; 
-          if(model->value_from_state) ok = model->value_from_state(w->x, inst->temptype, &outv, ctx); 
+          if(model->value_from_state) 
+            ok = model->value_from_state(w->x, inst->temptype, &outv, ctx); 
+          /* If extraction failed, use default method */
           if(!ok){ 
             outv = pack_value_from_vec(inst->temptype, w->hx); 
           } 
@@ -746,12 +756,15 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
       /* Emit cleaned instant */
       Datum outv; 
       bool ok=false; 
+      /* If the model provides a way to extract values from the state */
       if(model->value_from_state) 
         ok = model->value_from_state(w->x, inst->temptype, &outv, ctx); 
+      /* If extraction failed, use default method */
       if(!ok){ 
         model->h(w->x,w->hx,w->H,ctx); 
         outv = pack_value_from_vec(inst->temptype,w->hx); 
       } 
+      /* Emit the cleaned instant */
       out[outc++]=tinstant_make(outv,inst->temptype,inst->t); 
       DATUM_FREE(outv,temptype_basetype(inst->temptype)); 
     prev=inst->t; 
@@ -759,26 +772,25 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
     pfree(z);
   }
   TSequence *res=NULL; 
-  if(outc>0) 
+  /* Build result sequence if there are output instants */
+  if(outc > 0) 
     res=tsequence_make((const TInstant **)out,outc, seq->period.lower_inc, seq->period.upper_inc, MEOS_FLAGS_GET_INTERP(seq->flags), NORMALIZE_NO); 
   pfree_array((void**)out,outc); pfree(P0); ws_free(w); return res;
 }
 
 static Temporal * ekf_dispatch(const Temporal *t, const TEkfModel *m, const TEkfParams *p, void *ctx, int *removed)
 {
-  switch (t->subtype)
-  {
+  /* Dispatch according to the temporal subtype */
+  switch (t->subtype){
     case TINSTANT:
       return ekf_clean_instant((const TInstant *) t);
     case TSEQUENCE:
       return (Temporal *) ekf_clean_sequence((const TSequence *) t, m, p, ctx, removed);
-    case TSEQUENCESET:
-    {
+    case TSEQUENCESET:{
       const TSequenceSet *ss = (const TSequenceSet *) t;
       TSequence **arr = palloc(sizeof(TSequence *) * ss->count);
       int k = 0;
-      for (int i = 0; i < ss->count; i++)
-      {
+      for (int i = 0; i < ss->count; i++){
         TSequence *s = ekf_clean_sequence(TSEQUENCESET_SEQ_N(ss, i), m, p, ctx, removed);
         if (s) arr[k++] = s;
       }
