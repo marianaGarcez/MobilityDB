@@ -41,24 +41,27 @@
 
 #if defined(MEOS_EXPERIMENTAL_ANALYTICS)
 
-/* EKF model structure */
+/* EKF model structure
+ * TEkfModel stores callbacks for the EKF (state transition f, measurement h,
+ * noises Q/R, etc.). N and M define state and measurement dimensions.
+ * Matrices use row-major layout with sizes derived from N (state) and M (meas). */
 typedef struct TEkfModel
 {
   int N;  /* state dim */
   int M;  /* measurement dim */
-  bool (*f)(const double *x, const double *u, double dt, double *fx, double *F, void *ctx); /* state transition */
-  bool (*h)(const double *x, double *hx, double *H, void *ctx);         /* measurement function */
-  bool (*Q)(double dt, double *Q, void *ctx); /* optional, process noise covariance */
-  bool (*R)(double *R, void *ctx);            /* optional, measurement noise covariance */
-  bool (*z_from_value)(Datum value, meosType temptype, double *z, void *ctx); /* extract measurement from value */
-  bool (*value_from_state)(const double *x, meosType temptype, Datum *out_value, void *ctx); /* build value from state */
+  bool (*f)(const double *x, const double *u, double dt, double *fx, double *F, void *ctx); /* in: x[N],u,dt; out: fx[N], F[NxN]; return true on success */
+  bool (*h)(const double *x, double *hx, double *H, void *ctx);         /* in: x[N]; out: hx[M], H[MxN]; return true on success */
+  bool (*Q)(double dt, double *Q, void *ctx); /* out: Q[NxN] for dt; optional; return true on success */
+  bool (*R)(double *R, void *ctx);            /* out: R[MxM]; optional; return true on success */
+  bool (*z_from_value)(Datum value, meosType temptype, double *z, void *ctx); /* out: z[M] from Datum; optional; return true on success */
+  bool (*value_from_state)(const double *x, meosType temptype, Datum *out_value, void *ctx); /* out: Datum from x; optional; return true on success */
 } TEkfModel;
 
 /* EKF parameters */
 typedef struct TEkfParams
 {
   double default_dt; /* used if time difference is zero */
-  double gate_sigma; /* if true, fill in estimates for removed instants */
+  double gate_sigma; /* Mahalanobis gating threshold in sigma units (0 disables) */
   bool   fill_estimates; /* if true, fill in estimates for removed instants */
   const double *P0_diag; /* len N, initial state covariance */
   const double *x0;      /* len N, initial state */

@@ -73,7 +73,7 @@ static bool chol_decompose(const double *A, double *L, int m){
   return true;
 }
 
-/* Solve L*y = b for y */
+/* Solve (L * L^T) x = b using the Cholesky factor L */
 static void chol_solve(const double *L, const double *b, double *x, int m){
   double *y=palloc(sizeof(double)*(size_t)m);
   for(int i=0;i<m;i++){ 
@@ -167,8 +167,7 @@ bool tekf_make_cv_model(int D, TEkfModel *model){
   return true;
 }
 
-/* GPS-like model */
-/* Define context for GPS-like model */
+/* GPS-like model (ranges to anchors, CV dynamics, optional bias) */
 /* f is the state transition function */
 static bool gps_f(const double *x,const double*u,double dt,double*fx,double*F,void*v){
   (void)u;
@@ -192,7 +191,7 @@ static bool gps_f(const double *x,const double*u,double dt,double*fx,double*F,vo
   return true;
 }
 
-/* h is the measurement function */
+/* h is the measurement function (ranges to M anchors; adds bias if enabled) */
 static bool gps_h(const double *x,double*hx,double*H,void*v){
   const TEkfGpsCtx*c=v;
   int D=c->ndim, M=c->M, N=2*D+(c->use_bias?1:0), b=(c->use_bias?2*D:-1); 
@@ -260,8 +259,8 @@ static bool gps_R(double*R,void*v){
     R[i*M+i]=c->r_meas_var; 
   return true;
 }
-/* value_from_state: extract position (and bias if applicable) from state */
-/* return false if state is invalid as NaN */
+/* value_from_state: extract position from state (bias is not returned here). */
+/* returns false if output type dimension does not match model dimension */
 static bool gps_value_from_state(const double *x, meosType tt, Datum *out, void*v){
   const TEkfGpsCtx*c=v;
   int D=c->ndim; 
@@ -358,7 +357,49 @@ static Datum pack_value_from_vec(meosType tt, const double *v){
   }
 }
 
-/* Builders for initial matrices/vectors */
+/* Build an output Datum from the current state; if unavailable, pack z */
+static inline Datum ekf_value_from_state_or_z(const TEkfModel *model, meosType tt,
+                                              const double *x, const double *z, void *ctx)
+{
+  Datum outv = (Datum) 0;
+  bool ok = false;
+  if (model->value_from_state)
+    ok = model->value_from_state(x, tt, &outv, ctx);
+  if (!ok)
+    outv = pack_value_from_vec(tt, z);
+  return outv;
+}
+
+/* Build an output Datum from the current state; if unavailable, use h(x) */
+static inline Datum ekf_value_from_state_or_hx(const TEkfModel *model, meosType tt,
+                                               const double *x, double *hx, double *H, void *ctx)
+{
+  Datum outv = (Datum) 0;
+  bool ok = false;
+  if (model->value_from_state)
+    ok = model->value_from_state(x, tt, &outv, ctx);
+  if (!ok){
+    model->h(x, hx, H, ctx);
+    outv = pack_value_from_vec(tt, hx);
+  }
+  return outv;
+}
+
+/* Emit current estimate if fill_estimates; otherwise count as removed. */
+static inline void ekf_fill_or_drop(const TEkfParams *params, const TEkfModel *model,
+                                    const TInstant *inst, TEkfWs *w, void *ctx,
+                                    TInstant **out, int *outc, int *removed)
+{
+  if (params->fill_estimates) {
+    Datum outv = ekf_value_from_state_or_hx(model, inst->temptype, w->x, w->hx, w->H, ctx);
+    out[(*outc)++] = tinstant_make(outv, inst->temptype, inst->t);
+    DATUM_FREE(outv, temptype_basetype(inst->temptype));
+  } else if (removed) {
+    (*removed)++;
+  }
+}
+
+/* Builders for covariance matrices and initial vectors */
 static void build_R(const TEkfModel *m,const TEkfParams *p,double *R,void*ctx){
   int M=m->M;
   mat_clear(R,M,M);
@@ -527,7 +568,7 @@ static void ws_free(TEkfWs*w){
   pfree(w->K); 
   pfree(w);} 
 
-/* Determine dt */
+/* Determine effective dt (seconds); fallback to params->default_dt when non-positive */
 static inline double effective_dt(double obs, const TEkfParams *p){ 
   double dt=obs; 
   if(!(dt>0.0)) 
@@ -569,6 +610,11 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
   for(int i=0;i<N;i++) 
     for(int j=0;j<N;j++) 
       w->P[i*N+j]=(i==j)?P0[i]:0.0;
+  /* Precompute gating threshold squared (<=0 disables gating) */
+  const double gate2 = (params->gate_sigma > 0.0) ? (params->gate_sigma * params->gate_sigma) : -1.0;
+  /* Scratch buffers reused across observations */
+  double *Rt_global = palloc(sizeof(double)*M*M);
+  double *tmpy_global = palloc(sizeof(double)*M);
 
   /* Output instants */
   TInstant **out=palloc(sizeof(TInstant *)*n); 
@@ -605,20 +651,9 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
       else { 
         build_x0(model,params,z,w->x); 
       }
-      /* emit initial instant, if there is a valid measurement */
-      if (model->value_from_state) {
-        Datum outv;
-        if (model->value_from_state(w->x, inst->temptype, &outv, ctx)) {
-          out[outc++] = tinstant_make(outv, inst->temptype, inst->t);
-          DATUM_FREE(outv, temptype_basetype(inst->temptype));
-        } else {
-          Datum outv2 = pack_value_from_vec(inst->temptype, z);
-          out[outc++] = tinstant_make(outv2, inst->temptype, inst->t);
-          DATUM_FREE(outv2, temptype_basetype(inst->temptype));
-        }
-      } /* else just copy measurement */
-      else {
-        Datum outv = pack_value_from_vec(inst->temptype, z);
+      /* emit initial instant using state or measurement as fallback */
+      {
+        Datum outv = ekf_value_from_state_or_z(model, inst->temptype, w->x, z, ctx);
         out[outc++] = tinstant_make(outv, inst->temptype, inst->t);
         DATUM_FREE(outv, temptype_basetype(inst->temptype));
       }
@@ -628,9 +663,9 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
     double dt=effective_dt(((double)(inst->t - prev))/1000000.0, params);
     /* Predict state and error covariance */
     build_Q(model,params,dt,w->Q,ctx); 
-    /* x = f(x) */
+    /* x = f(x) (model also fills F) */
     model->f(w->x,NULL,dt,w->fx,w->F,ctx); 
-    /* Jacobian */
+    /* Copy predicted state */
     memcpy(w->x,w->fx,sizeof(double)*N); 
     /* P = F*P*F^T + Q */
     mat_mul(w->F,w->P,w->FP,N,N,N); 
@@ -646,21 +681,13 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
       /* if the model provides a way to extract measurements from the value 
       else use a default method that reads the value into the measurement vector */
       if(params->fill_estimates){ 
-        Datum outv; 
-        bool ok=false; 
-        if(model->value_from_state) 
-          ok = model->value_from_state(w->x, inst->temptype, &outv, ctx); 
-        if(!ok){ 
-          model->h(w->x,w->hx,w->H,ctx); 
-          outv = pack_value_from_vec(inst->temptype,w->hx); 
-        } 
+        Datum outv = ekf_value_from_state_or_hx(model, inst->temptype, w->x, w->hx, w->H, ctx);
         out[outc++]=tinstant_make(outv,inst->temptype,inst->t); 
         DATUM_FREE(outv,temptype_basetype(inst->temptype)); 
       } prev=inst->t; pfree(z); 
       continue; 
     }
     /* Compute innovation y = z - h(x) and its covariance S = H*P*H^T + R */
-    build_R(model,params,w->S,ctx); 
     /* h(x) */
     model->h(w->x,w->hx,w->H,ctx); 
     for(int ii=0;ii<M;ii++) 
@@ -671,76 +698,51 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
     mat_transpose(w->H,w->Ht,M,N); 
     mat_mul(w->HP,w->Ht,w->S,M,N,M); 
 
-    double *Rt=palloc(sizeof(double)*M*M); 
-    build_R(model,params,Rt,ctx); 
+    build_R(model,params,Rt_global,ctx); 
     /* S = S + R */
-    mat_add(w->S,w->S,Rt,M,M); 
+    mat_add(w->S,w->S,Rt_global,M,M); 
 
     /* gating and outlier rejection */
     if(!chol_decompose(w->S,w->L,M)){ 
       /* regularize and try again */
       for(int ii=0;ii<M;ii++) 
         w->S[ii*M+ii]+=1e-9; 
-      if(!chol_decompose(w->S,w->L,M)){ 
-        if(params->fill_estimates){ 
-          Datum outv; 
-          bool ok=false; 
-          if(model->value_from_state) ok = model->value_from_state(w->x, inst->temptype, &outv, ctx); 
-          if(!ok){ 
-            outv = pack_value_from_vec(inst->temptype, w->hx); 
-          } 
-          out[outc++]=tinstant_make(outv,inst->temptype,inst->t); 
-          DATUM_FREE(outv,temptype_basetype(inst->temptype)); 
-        } 
-        else if(removed) 
-          (*removed)++; 
+      if(!chol_decompose(w->S,w->L,M)){
+        ekf_fill_or_drop(params, model, inst, w, ctx, out, &outc, removed);
         prev=inst->t; 
-        pfree(Rt); 
         pfree(z); 
         continue; 
       }} 
       /* Mahalanobis distance */
-      double *tmpy=palloc(sizeof(double)*M); 
-      chol_solve(w->L,w->y,tmpy,M); 
+      chol_solve(w->L,w->y,tmpy_global,M); 
       double d2=0; 
       for(int ii=0;ii<M;ii++) 
-        d2+=w->y[ii]*tmpy[ii]; 
-      pfree(tmpy); 
+        d2+=w->y[ii]*tmpy_global[ii]; 
       /* Compute gating criterion */
-      bool reject=(params->gate_sigma>0.0)&&(d2>params->gate_sigma*params->gate_sigma); 
+      bool reject = (gate2 > 0.0) && (d2 > gate2);
       /* If rejected, either emit estimate or skip */
-      if(reject){ 
-        /* If filling estimates, emit the current state */
-        if(params->fill_estimates){ 
-          Datum outv; 
-          bool ok=false; 
-          if(model->value_from_state) 
-            ok = model->value_from_state(w->x, inst->temptype, &outv, ctx); 
-          /* If extraction failed, use default method */
-          if(!ok){ 
-            outv = pack_value_from_vec(inst->temptype, w->hx); 
-          } 
-          out[outc++]=tinstant_make(outv,inst->temptype,inst->t); 
-          DATUM_FREE(outv,temptype_basetype(inst->temptype)); 
-        } 
-        else if(removed) 
-          (*removed)++; 
+      if(reject){
+        ekf_fill_or_drop(params, model, inst, w, ctx, out, &outc, removed);
         prev=inst->t; 
-        pfree(Rt); 
+        
         pfree(z); 
         continue; 
       }
     mat_transpose(w->HP,w->PHt,M,N); 
     /* Compute Kalman gain K = P*H^T*S^-1 via Cholesky solve */
-    for(int j=0;j<N;j++){ 
-      double *rhs=palloc(sizeof(double)*M), *col=palloc(sizeof(double)*M); 
-      for(int ii=0;ii<M;ii++) 
-        rhs[ii]=w->PHt[j*M+ii]; 
-      chol_solve(w->L,rhs,col,M); 
-      for(int ii=0;ii<M;ii++) 
-      w->K[j*M+ii]=col[ii]; 
-      pfree(rhs); pfree(col);
-    } 
+    {
+      double *rhs = palloc(sizeof(double)*M);
+      double *col = palloc(sizeof(double)*M);
+      for(int j=0;j<N;j++){
+        for(int ii=0;ii<M;ii++)
+          rhs[ii]=w->PHt[j*M+ii];
+        chol_solve(w->L,rhs,col,M);
+        for(int ii=0;ii<M;ii++)
+          w->K[j*M+ii]=col[ii];
+      }
+      pfree(rhs);
+      pfree(col);
+    }
     /* Update state x = x + K*y */
     for(int ii=0;ii<N;ii++){ 
       double s=0; 
@@ -754,28 +756,18 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
       mat_sub(w->P,w->P,KHP,N,N); 
       pfree(KHP);
       /* Emit cleaned instant */
-      Datum outv; 
-      bool ok=false; 
-      /* If the model provides a way to extract values from the state */
-      if(model->value_from_state) 
-        ok = model->value_from_state(w->x, inst->temptype, &outv, ctx); 
-      /* If extraction failed, use default method */
-      if(!ok){ 
-        model->h(w->x,w->hx,w->H,ctx); 
-        outv = pack_value_from_vec(inst->temptype,w->hx); 
-      } 
+      Datum outv = ekf_value_from_state_or_hx(model, inst->temptype, w->x, w->hx, w->H, ctx);
       /* Emit the cleaned instant */
       out[outc++]=tinstant_make(outv,inst->temptype,inst->t); 
       DATUM_FREE(outv,temptype_basetype(inst->temptype)); 
     prev=inst->t; 
-    pfree(Rt); 
     pfree(z);
   }
   TSequence *res=NULL; 
   /* Build result sequence if there are output instants */
   if(outc > 0) 
     res=tsequence_make((const TInstant **)out,outc, seq->period.lower_inc, seq->period.upper_inc, MEOS_FLAGS_GET_INTERP(seq->flags), NORMALIZE_NO); 
-  pfree_array((void**)out,outc); pfree(P0); ws_free(w); return res;
+  pfree_array((void**)out,outc); pfree(P0); pfree(Rt_global); pfree(tmpy_global); ws_free(w); return res;
 }
 
 static Temporal * ekf_dispatch(const Temporal *t, const TEkfModel *m, const TEkfParams *p, void *ctx, int *removed)

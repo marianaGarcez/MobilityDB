@@ -59,12 +59,18 @@
 /* Bring only the minimal temporal definitions to avoid geo deps */
 #include <temporal/doublen.h>
 #include <temporal/meos_catalog.h>
-/* Provide light macros usually supplied by temporal/temporal.h */
+/* Provide light macros and alloc fallbacks when not building with MEOS */
 #ifndef DatumGetDouble2P
 #define DatumGetDouble2P(X)       ((double2 *) DatumGetPointer(X))
 #endif
 #ifndef Double2PGetDatum
 #define Double2PGetDatum(X)       PointerGetDatum(X)
+#endif
+#ifndef palloc
+#include <stdlib.h>
+#define palloc(sz)                malloc(sz)
+#define palloc0(sz)               calloc(1, (sz))
+#define pfree(ptr)                free(ptr)
 #endif
 
 /* Minimal internal forward decls we rely on (avoid meos_internal.h deps) */
@@ -176,7 +182,7 @@ static bool parse_timestamp_eu(const char *s, TimestampTz *out)
   int d=0,m=0,y=0,hh=0,mm=0,ss=0;
   if (!s || strlen(s) < 10)
     return false;
-  /* Allow both ' ' and 'T' as separator */
+  /* Note: this parser expects a space as separator (" ") */
   int matched = sscanf(s, "%d/%d/%d %d:%d:%d", &d, &m, &y, &hh, &mm, &ss);
   if (matched < 3)
     return false;
@@ -187,8 +193,10 @@ static bool parse_timestamp_eu(const char *s, TimestampTz *out)
   char iso[32];
   snprintf(iso, sizeof(iso), "%04d-%02d-%02d %02d:%02d:%02d", y, m, d, hh, mm, ss);
   TimestampTz ts = pg_timestamptz_in(iso, -1);
+#ifdef DT_NOEND
   if (ts == DT_NOEND)
     return false;
+#endif
   *out = ts;
   return true;
 }
@@ -336,8 +344,8 @@ int main(int argc, char **argv)
   */
   bool cli_drop = false;
   double cli_gate_sigma = -1.0;
-  double cli_q = -1.0;      /* q_accel_var in deg^2/s^4 */
-  double cli_r = -1.0;      /* r_meas_var in deg^2 */
+  double cli_q = -1.0;      /* q_accel_var (units depend: m^2/s^4 if ENU, deg^2/s^4 if degrees) */
+  double cli_r = -1.0;      /* r_meas_var (units depend: m^2 if ENU, deg^2 if degrees) */
   bool use_enu = true;
   for (int ai = 3; ai < argc; ai++)
   {
@@ -364,7 +372,7 @@ int main(int argc, char **argv)
     fprintf(fout, "Timestamp,MMSI,Longitude_Raw,Latitude_Raw,Longitude_Clean,Latitude_Clean\n");
   }
 
-  /* Build sequences and clean with EKF (CV over lon/lat) */
+  /* Build sequences and clean with EKF (CV over lon/lat degrees, or ENU meters if enabled) */
   for (int i = 0; i < n_tracks; i++)
   {
     if (tracks[i].n_inst == 0)
@@ -380,11 +388,11 @@ int main(int argc, char **argv)
     if (!tekf_make_cv_model(2, &model))
     {
       printf("MMSI %lld: EKF model creation failed, skipping.\n", tracks[i].mmsi);
-      free(seq);
+      pfree(seq);
       continue;
     }
-    /* Option A (default): use input lon/lat directly.
-       Option B (use_enu): run the EKF in ENU meters via model adapters.
+    /* Option A (deg): use input lon/lat directly.
+       Option B (enu, default): run the EKF in ENU meters via model adapters.
        We keep the sequence as-is and adapt measurements/state. */
     double lat0 = 0.0, lon0 = 0.0;
     if (use_enu)
@@ -395,7 +403,7 @@ int main(int argc, char **argv)
       pfree(i0);
     }
     /* CV context and parameters */
-    /* Defaults: if ENU (meters): q in m^2/s^4, r in m^2; if degrees: as before */
+    /* Defaults: if ENU (meters): q in m^2/s^4, r in m^2; if degrees: q, r are in degrees units */
     double def_q = use_enu ? 0.04 /* (0.2 m/s^2)^2 */ : 5e-10;
     double def_r = use_enu ? 400.0 /* (20 m)^2 */ : 4e-6;
     CvEnuCtx cvctx = { .D = 2,
@@ -404,9 +412,9 @@ int main(int argc, char **argv)
                        .lat0 = lat0, .lon0 = lon0 };
     double P0_diag[4] = { 1e-4, 1e-2, 1e-4, 1e-2 }; /* pos/vel per axis */
     TEkfParams params = {
-      .default_dt = 1.0,
-      .gate_sigma = (cli_gate_sigma > 0 ? cli_gate_sigma : 8.0),
-      .fill_estimates = !cli_drop,
+      .default_dt = 1.0, /* used when two observations have non-positive dt */
+      .gate_sigma = (cli_gate_sigma > 0 ? cli_gate_sigma : 8.0), /* Mahalanobis threshold in sigmas (0 disables) */
+      .fill_estimates = !cli_drop, /* when gated out, emit estimate instead of dropping */
       .P0_diag = P0_diag,
       .x0 = NULL,
       .Q_diag = NULL,
@@ -414,8 +422,7 @@ int main(int argc, char **argv)
     };
     int removed = 0;
     /* When using ENU, adapt model to convert measurements/state */
-    bool use_adapt = use_enu;
-    if (use_adapt)
+    if (use_enu)
     {
       /* Measurement: z = [E,N] from [lon,lat] */
       model.z_from_value = enu_z_from_value;
@@ -490,11 +497,12 @@ int main(int argc, char **argv)
     {
       for (int k = 0; k < seq->count; k++)
       {
-        const TInstant *ir = TSEQUENCE_INST_N(seq, k);
+        TInstant *ir = temporal_instant_n((const Temporal *) seq, k + 1);
         const double2 *vr = DatumGetDouble2P(tinstant_value_p(ir));
         char *ts = pg_timestamptz_out(ir->t);
         fprintf(fout, "%s,%lld,%.10f,%.10f,%.10f,%.10f\n", ts, tracks[i].mmsi, vr->a, vr->b, vr->a, vr->b);
         pfree(ts);
+        pfree(ir);
       }
     }
     printf("MMSI %lld: built sequence with %d instants. Rebuild MEOS with -DMEOS_EXPERIMENTAL_ANALYTICS to enable EKF.\n",
