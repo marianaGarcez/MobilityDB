@@ -30,11 +30,13 @@ static inline void mat_add(double *C,const double*A,const double*B,int m,int n){
   for(int i=0;i<mn;i++)
     C[i]=A[i]+B[i];
 }
+
 static inline void mat_sub(double *C,const double*A,const double*B,int m,int n){ 
   int mn=m*n;
   for(int i=0;i<mn;i++)
     C[i]=A[i]-B[i];
 }
+
 static inline void mat_mul(const double*A,const double*B,double*C,int arows,int acols,int bcols){ 
   for(int i=0;i<arows;i++){
     for(int j=0;j<bcols;j++){
@@ -45,6 +47,7 @@ static inline void mat_mul(const double*A,const double*B,double*C,int arows,int 
     }
   }
 }
+
 static inline void mat_transpose(const double*A,double*At,int m,int n){ 
   for(int i=0;i<m;i++)
     for(int j=0;j<n;j++)
@@ -94,6 +97,7 @@ static void chol_solve(const double *L, const double *b, double *x, int m){
 
 /* f is the state transition function */
 static bool cv_f(const double *x,const double*u,double dt,double*fx,double*F,void*v){
+  /* State transition function for constant velocity model */
   (void)u;
   CV_ModelCtx*c=v;
   int D=c->D;
@@ -104,6 +108,7 @@ static bool cv_f(const double *x,const double*u,double dt,double*fx,double*F,voi
     fx[2*i+1]=v2;
   } 
   mat_clear(F,N,N); 
+  /* State transition matrix */
   for(int i=0;i<D;i++){
     F[(2*i)*N+(2*i)]=1; 
     F[(2*i)*N+(2*i+1)]=dt; 
@@ -120,10 +125,12 @@ static bool cv_h(const double *x,double*hx,double*H,void*v){
   for(int i=0;i<D;i++) 
     hx[i]=x[2*i];
   mat_clear(H,D,N);
+  /* Measurement matrix */
   for(int i=0;i<D;i++) 
     H[i*N+2*i]=1;
   return true;
 }
+
 /* Q is the process noise covariance */
 static bool cv_Q(double dt,double*Q,void*v){
   CV_ModelCtx*c=v;
@@ -132,6 +139,7 @@ static bool cv_Q(double dt,double*Q,void*v){
   mat_clear(Q,N,N);
   double q=c->q_accel_var, dt2=dt*dt;
   double q11=q*(dt2*dt/3.0), q12=q*(dt2/2.0), q22=q*dt;
+  /* Constant-acceleration model per axis */
   for(int i=0;i<D;i++){
     int p=2*i, ve=2*i+1;
     Q[p*N+p]+=q11;
@@ -147,6 +155,7 @@ static bool cv_R(double*R,void*v){
   CV_ModelCtx*c=v;
   int M=c->D;
   mat_clear(R,M,M);
+  /* Diagonal with measurement variance per axis */
   for(int i=0;i<M;i++)  
     R[i*M+i]=c->r_meas_var;
   return true;
@@ -181,7 +190,8 @@ static bool gps_f(const double *x,const double*u,double dt,double*fx,double*F,vo
   } 
   if(c->use_bias) 
     fx[2*D]=x[2*D]; 
-  mat_clear(F,N,N); 
+  mat_clear(F,N,N);
+  /* State transition matrix */ 
   for(int i=0;i<D;i++){
     F[(2*i)*N+(2*i)]=1; 
     F[(2*i)*N+(2*i+1)]=dt; 
@@ -259,12 +269,13 @@ static bool gps_R(double*R,void*v){
     R[i*M+i]=c->r_meas_var; 
   return true;
 }
-/* value_from_state: extract position from state (bias is not returned here). */
+/* value_from_state: extract position from state. */
 /* returns false if output type dimension does not match model dimension */
 static bool gps_value_from_state(const double *x, meosType tt, Datum *out, void*v){
   const TEkfGpsCtx*c=v;
   int D=c->ndim; 
   meosType bt=temptype_basetype(tt); 
+  /* Check output type dimension */
   int outD = (bt==T_DOUBLE3?3: bt==T_DOUBLE2?2: bt==T_FLOAT8?1:0); 
   if(outD!=D) 
     return false; 
@@ -357,9 +368,8 @@ static Datum pack_value_from_vec(meosType tt, const double *v){
   }
 }
 
-/* Build an output Datum from the current state; if unavailable, pack z */
-static inline Datum ekf_value_from_state_or_z(const TEkfModel *model, meosType tt,
-                                              const double *x, const double *z, void *ctx)
+/*Build an output value at initialization; if the model can’t convert state→value, fallback to the measured z */
+static inline Datum ekf_value_from_state_or_z(const TEkfModel *model, meosType tt,const double *x, const double *z, void *ctx)
 {
   Datum outv = (Datum) 0;
   bool ok = false;
@@ -370,9 +380,8 @@ static inline Datum ekf_value_from_state_or_z(const TEkfModel *model, meosType t
   return outv;
 }
 
-/* Build an output Datum from the current state; if unavailable, use h(x) */
-static inline Datum ekf_value_from_state_or_hx(const TEkfModel *model, meosType tt,
-                                               const double *x, double *hx, double *H, void *ctx)
+/*  Build an output value during predict/update/fill; if state→value isn’t available, fallback to the model’s predicted measurement h(x). */
+static inline Datum ekf_value_from_state_or_hx(const TEkfModel *model, meosType tt,const double *x, double *hx, double *H, void *ctx)
 {
   Datum outv = (Datum) 0;
   bool ok = false;
@@ -386,9 +395,7 @@ static inline Datum ekf_value_from_state_or_hx(const TEkfModel *model, meosType 
 }
 
 /* Emit current estimate if fill_estimates; otherwise count as removed. */
-static inline void ekf_fill_or_drop(const TEkfParams *params, const TEkfModel *model,
-                                    const TInstant *inst, TEkfWs *w, void *ctx,
-                                    TInstant **out, int *outc, int *removed)
+static inline void ekf_fill_or_drop(const TEkfParams *params, const TEkfModel *model,const TInstant *inst, TEkfWs *w, void *ctx,TInstant **out, int *outc, int *removed)
 {
   if (params->fill_estimates) {
     Datum outv = ekf_value_from_state_or_hx(model, inst->temptype, w->x, w->hx, w->H, ctx);
@@ -460,7 +467,7 @@ static bool gps_init_from_ranges(const TEkfGpsCtx *ctx, const double *z, double 
   const int D = ctx->ndim;
   const int M = ctx->M;
   if (M < D + 1) 
-    return false; /* need at least D+1 anchors */
+    return false; /* need at least D+1 anchors, anchors are known points in 2D/3D space with known coordinates that a receiver measures distances */
   /* Build linear system A p = b from differences to anchor 0 */
   const double *a0 = &ctx->anchors[0];
   double *A = palloc0(sizeof(double) * (size_t)(M-1) * (size_t)D);
@@ -568,9 +575,10 @@ static void ws_free(TEkfWs*w){
   pfree(w->K); 
   pfree(w);} 
 
-/* Determine effective dt (seconds); fallback to params->default_dt when non-positive */
+/* Determine effective delta time, for the temporal dimension (seconds); fallback to params->default_dt when non-positive */
 static inline double effective_dt(double obs, const TEkfParams *p){ 
   double dt=obs; 
+  /* If the observed delta time is not positive, fallback to the default */
   if(!(dt>0.0)) 
     dt=(p&&p->default_dt>0.0)?p->default_dt:0.0; 
   return dt;
@@ -582,8 +590,7 @@ static Temporal * ekf_clean_instant(const TInstant *inst){
 }
 
 /* EKF cleaning of sequence */
-/* the algorithm takes one temporal sequence 
-and runs an Extended Kalman Filter (EKF) over it */
+/* the algorithm takes one temporal sequence and runs an Extended Kalman Filter (EKF) over it */
 static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *model, const TEkfParams *params_in, void *ctx, int *removed){
   const int N=model->N, M=model->M; 
   int n=seq->count; 
@@ -610,6 +617,7 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
   for(int i=0;i<N;i++) 
     for(int j=0;j<N;j++) 
       w->P[i*N+j]=(i==j)?P0[i]:0.0;
+
   /* Precompute gating threshold squared (<=0 disables gating) */
   const double gate2 = (params->gate_sigma > 0.0) ? (params->gate_sigma * params->gate_sigma) : -1.0;
   /* Scratch buffers reused across observations */
@@ -622,7 +630,7 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
   bool has=false; 
   TimestampTz prev=0;
 
-  /* Main EKF loop */
+  /*----------------- Main EKF loop -----------------*/
   for(int i=0;i<n;i++){
     const TInstant *inst=TSEQUENCE_INST_N(seq,i); 
     Datum val=tinstant_value_p(inst); 
@@ -630,14 +638,12 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
     bool have=false; 
 
     /* Extract measurement from value */
-    /* if the model provides a way to extract measurements from the value 
-    else use a default method that reads the value into the measurement vector */
     if(model->z_from_value) 
       have=model->z_from_value(val,inst->temptype,z,ctx); 
     else 
       have=read_z_from_value(val,inst->temptype,M,z);
 
-    /* Initialization */
+    /* Initialization, solve position from ranges and anchors */
     if(!has){ 
       if(!have){ 
         prev=inst->t; 
@@ -660,6 +666,7 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
       has=true; prev=inst->t; pfree(z); continue; 
     }
     /* Prediction step */
+    /* Compute time delta in seconds */
     double dt=effective_dt(((double)(inst->t - prev))/1000000.0, params);
     /* Predict state and error covariance */
     build_Q(model,params,dt,w->Q,ctx); 
@@ -680,6 +687,8 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
     if(!have){ 
       /* if the model provides a way to extract measurements from the value 
       else use a default method that reads the value into the measurement vector */
+
+      /*if we should fill estimates*/
       if(params->fill_estimates){ 
         Datum outv = ekf_value_from_state_or_hx(model, inst->temptype, w->x, w->hx, w->H, ctx);
         out[outc++]=tinstant_make(outv,inst->temptype,inst->t); 
@@ -702,7 +711,7 @@ static TSequence * ekf_clean_sequence(const TSequence *seq, const TEkfModel *mod
     /* S = S + R */
     mat_add(w->S,w->S,Rt_global,M,M); 
 
-    /* gating and outlier rejection */
+    /* gating and outlier removal */
     if(!chol_decompose(w->S,w->L,M)){ 
       /* regularize and try again */
       for(int ii=0;ii<M;ii++) 
