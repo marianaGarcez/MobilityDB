@@ -38,6 +38,7 @@
 /* C */
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 /* PostgreSQL */
 #if MEOS
 #include "postgres_int_defs.h"
@@ -1802,6 +1803,7 @@ extern double temporal_hausdorff_distance(const Temporal *temp1, const Temporal 
 
 extern Temporal *temporal_ext_kalman_filter(const Temporal *temp, double gate,
   double q, double variance, bool to_drop);
+extern void meos_ekf_set_debug_file(FILE *fp);
 
 /*****************************************************************************/
 

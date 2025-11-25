@@ -42,6 +42,7 @@
 #include <assert.h>
 #include <math.h>
 #include <float.h>
+#include <stdio.h>
 /* PostgreSQL */
 #include <postgres.h>
 #include <utils/timestamp.h>
@@ -66,6 +67,15 @@
 /*****************************************************************************
  * Extended Kalman Filter (EKF) outlier filtering, adapting tinyEKF to MEOS
  *****************************************************************************/
+
+/* Optional debug stream for EKF internals */
+static FILE *ekf_debug_fp = NULL;
+
+void
+meos_ekf_set_debug_file(FILE *fp)
+{
+  ekf_debug_fp = fp;
+}
 
 /* Build constant-velocity F matrix for given dt (seconds), Jacobian of state-transition function */
 static inline void
@@ -271,6 +281,57 @@ static TSequence * tsequence_ext_kalman_filter(const TSequence *seq, meosType te
     _float_t Sinv[EKF_M*EKF_M]; bool ok = invert(S, Sinv);
     _float_t v[EKF_M]; _sub(z, hx, v, EKF_M);
     double mdist = ok ? innovation_distance(v, Sinv) : 0.0;
+
+    /* Optional EKF debug logging */
+    if (ekf_debug_fp && temptype == T_TGEOMPOINT && dims >= 2)
+    {
+      double lat_meas = 0.0;
+      double lon_meas = 0.0;
+      if (hasz)
+      {
+        const POINT3DZ *p = DATUM_POINT3DZ_P(tinstant_value_p(inst));
+        lon_meas = p->x;
+        lat_meas = p->y;
+      }
+      else
+      {
+        const POINT2D *p = DATUM_POINT2D_P(tinstant_value_p(inst));
+        lon_meas = p->x;
+        lat_meas = p->y;
+      }
+
+      double lat_pred = (double) fx[2];
+      double lon_pred = (double) fx[0];
+      double lat_state = (double) ekf.x[2];
+      double lon_state = (double) ekf.x[0];
+      double innov_x = (double) v[0];
+      double innov_y = (double) v[1];
+      double P_xx = (double) ekf.P[0*EKF_N + 0];
+      double P_yy = (double) ekf.P[2*EKF_N + 2];
+
+      int meos_outlier_flag = (ok && mdist > gate) ? 1 : 0;
+
+      char *ts = pg_timestamptz_out(inst->t); /* e.g., 2024-03-01 00:02:27+00 */
+
+      fprintf(ekf_debug_fp,
+        "%s,%.10f,%.10f,%f,"
+        "%.10f,%.10f,"
+        "%.10f,%.10f,"
+        "%e,%e,"
+        "%f,%d,"
+        "%e,%e\n",
+        ts ? ts : "",
+        lat_meas, lon_meas,
+        dt,
+        lat_pred, lon_pred,
+        lat_state, lon_state,
+        innov_x, innov_y,
+        mdist, meos_outlier_flag,
+        P_xx, P_yy);
+
+      if (ts)
+        pfree(ts);
+    }
 
     if (ok && mdist > gate)
     {

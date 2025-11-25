@@ -338,6 +338,20 @@ int main(int argc, char **argv)
       fprintf(fremoved, "MMSI,Timestamp,Longitude,Latitude\n");
   }
 
+  /* Prepare EKF debug CSV (optional) */
+  FILE *dbg = fopen("MEOS_aggr_debug.csv", "w");
+  if (dbg)
+  {
+    fprintf(dbg,
+      "Timestamp,Lat_meas,Lon_meas,dt,"
+      "Lat_pred,Lon_pred,"
+      "Lat_state,Lon_state,"
+      "innov_x,innov_y,"
+      "mdist,meos_outlier,"
+      "P_xx,P_yy\n");
+    meos_ekf_set_debug_file(dbg);
+  }
+
   /* Process each trip_record */
   for (i = 0; i < no_ships; i++)
   {
@@ -425,6 +439,11 @@ next_raw:
 
   if (fout) fclose(fout);
   if (fremoved) fclose(fremoved);
+  if (dbg)
+  {
+    meos_ekf_set_debug_file(NULL);
+    fclose(dbg);
+  }
 
   exit_value = EXIT_SUCCESS;
 
