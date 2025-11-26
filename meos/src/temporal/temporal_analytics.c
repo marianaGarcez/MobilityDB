@@ -282,7 +282,100 @@ static TSequence * tsequence_ext_kalman_filter(const TSequence *seq, meosType te
     _float_t v[EKF_M]; _sub(z, hx, v, EKF_M);
     double mdist = ok ? innovation_distance(v, Sinv) : 0.0;
 
-    /* Optional EKF debug logging */
+    if (ok && mdist > gate)
+    {
+      if (!to_drop)
+      {
+        /* Keep predicted value without updating the state */
+        if (temptype == T_TFLOAT)
+        {
+          outinsts[outcount++] = tinstant_make(
+            Float8GetDatum((double) fx[0]), T_TFLOAT, inst->t);
+        }
+        else /* T_TGEOMPOINT */
+        {
+          double x = fx[0];
+          double y = fx[2];
+          double zpos = fx[4];
+          GSERIALIZED *gs = geopoint_make(x, y, zpos, hasz, false, srid);
+          outinsts[outcount++] = tinstant_make_free(PointerGetDatum(gs),
+            T_TGEOMPOINT, inst->t);
+        }
+      }
+
+      /* Optional EKF debug logging for outliers (state is the prediction) */
+      if (ekf_debug_fp && temptype == T_TGEOMPOINT && dims >= 2)
+      {
+        double lat_meas = 0.0;
+        double lon_meas = 0.0;
+        if (hasz)
+        {
+          const POINT3DZ *p = DATUM_POINT3DZ_P(tinstant_value_p(inst));
+          lon_meas = p->x;
+          lat_meas = p->y;
+        }
+        else
+        {
+          const POINT2D *p = DATUM_POINT2D_P(tinstant_value_p(inst));
+          lon_meas = p->x;
+          lat_meas = p->y;
+        }
+
+        double lat_pred = (double) fx[2];
+        double lon_pred = (double) fx[0];
+        double lat_state = (double) ekf.x[2];
+        double lon_state = (double) ekf.x[0];
+        double innov_x = (double) v[0];
+        double innov_y = (double) v[1];
+        double P_xx = (double) ekf.P[0*EKF_N + 0];
+        double P_yy = (double) ekf.P[2*EKF_N + 2];
+
+        int meos_outlier_flag = 1;
+
+        char *ts = pg_timestamptz_out(inst->t); /* e.g., 2024-03-01 00:02:27+00 */
+
+        fprintf(ekf_debug_fp,
+          "%s,%.10f,%.10f,%f,"
+          "%.10f,%.10f,"
+          "%.10f,%.10f,"
+          "%e,%e,"
+          "%f,%d,"
+          "%e,%e\n",
+          ts ? ts : "",
+          lat_meas, lon_meas,
+          dt,
+          lat_pred, lon_pred,
+          lat_state, lon_state,
+          innov_x, innov_y,
+          mdist, meos_outlier_flag,
+          P_xx, P_yy);
+
+        if (ts)
+          pfree(ts);
+      }
+
+      /* Skip update to avoid contaminating state */
+      prev_t = inst->t;
+      continue;
+    }
+
+    /* Inlier: update and emit filtered value */
+    (void) ekf_update(&ekf, z, hx, H, Rm);
+
+    if (temptype == T_TFLOAT)
+    {
+      outinsts[outcount++] = tinstant_make(
+        Float8GetDatum((double) ekf.x[0]), T_TFLOAT, inst->t);
+    }
+    else /* T_TGEOMPOINT */
+    {
+      double x = ekf.x[0], y = ekf.x[2], zpos = ekf.x[4];
+      GSERIALIZED *gs = geopoint_make(x, y, zpos, hasz, false, srid);
+      outinsts[outcount++] = tinstant_make_free(PointerGetDatum(gs),
+        T_TGEOMPOINT, inst->t);
+    }
+
+    /* Optional EKF debug logging for inliers (state is posterior after update) */
     if (ekf_debug_fp && temptype == T_TGEOMPOINT && dims >= 2)
     {
       double lat_meas = 0.0;
@@ -309,7 +402,7 @@ static TSequence * tsequence_ext_kalman_filter(const TSequence *seq, meosType te
       double P_xx = (double) ekf.P[0*EKF_N + 0];
       double P_yy = (double) ekf.P[2*EKF_N + 2];
 
-      int meos_outlier_flag = (ok && mdist > gate) ? 1 : 0;
+      int meos_outlier_flag = 0;
 
       char *ts = pg_timestamptz_out(inst->t); /* e.g., 2024-03-01 00:02:27+00 */
 
@@ -331,47 +424,6 @@ static TSequence * tsequence_ext_kalman_filter(const TSequence *seq, meosType te
 
       if (ts)
         pfree(ts);
-    }
-
-    if (ok && mdist > gate)
-    {
-      if (!to_drop)
-      {
-        /* Keep predicted value without updating the state */
-        if (temptype == T_TFLOAT)
-        {
-          outinsts[outcount++] = tinstant_make(
-            Float8GetDatum((double) fx[0]), T_TFLOAT, inst->t);
-        }
-        else /* T_TGEOMPOINT */
-        {
-          double x = fx[0];
-          double y = fx[2];
-          double zpos = fx[4];
-          GSERIALIZED *gs = geopoint_make(x, y, zpos, hasz, false, srid);
-          outinsts[outcount++] = tinstant_make_free(PointerGetDatum(gs),
-            T_TGEOMPOINT, inst->t);
-        }
-      }
-      /* Skip update to avoid contaminating state */
-      prev_t = inst->t;
-      continue;
-    }
-
-    /* Inlier: update and emit filtered value */
-    (void) ekf_update(&ekf, z, hx, H, Rm);
-
-    if (temptype == T_TFLOAT)
-    {
-      outinsts[outcount++] = tinstant_make(
-        Float8GetDatum((double) ekf.x[0]), T_TFLOAT, inst->t);
-    }
-    else /* T_TGEOMPOINT */
-    {
-      double x = ekf.x[0], y = ekf.x[2], zpos = ekf.x[4];
-      GSERIALIZED *gs = geopoint_make(x, y, zpos, hasz, false, srid);
-      outinsts[outcount++] = tinstant_make_free(PointerGetDatum(gs),
-        T_TGEOMPOINT, inst->t);
     }
     prev_t = inst->t;
   }
